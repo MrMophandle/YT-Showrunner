@@ -197,23 +197,32 @@ Core capabilities this product provides:
 
 ### Business Constraints
 
-- [Budget limitations]
-- [Timeline requirements]
-- [Resource constraints]
-- [Organizational constraints]
+- Local-only tool (no multi-user SaaS scaling in Phase 1)
+- Single-user model (no concurrency, auth, or RBAC required in Phase 1)
+- Desktop-bound (localhost-only, no mobile or external access)
 
 ### Technical Constraints
 
-- [Platform requirements]
-- [Browser/device support]
-- [Legacy system compatibility]
-- [Technology restrictions]
+- **Node.js runtime**: Requires Node.js 22+ for runtime compatibility
+- **TypeScript strict mode**: All production code must pass TypeScript strict type checking
+- **Single-process model**: Headless `claude -p` spawns per turn; no process pooling in Phase 1
+- **Localhost-only binding**: Server binds to `127.0.0.1:8787` exclusively; no external network exposure
 
 ### Assumptions
 
-- [Key assumption 1]
-- [Key assumption 2]
-- [Key assumption 3]
+- `claude -p --output-format stream-json` will be available on PATH when the server runs
+- `.agent-logs/claude_transcript_to_md.py` is available for reference during development (for stream-json format understanding)
+- Session resume (`--resume <id>`) produces deterministic turn results (used for replay and caching in later phases)
+- Canon directory structure (`seasons/<seasonId>/`) is writable by the Node process
+
+### Known Issues & Deferred Work
+
+#### Transitive Dev-Only CVEs in Vitest/Vite/esbuild Chain (Deferred Security Bump)
+- **Issue**: Vitest 2.1.8 has critical/high/moderate CVEs in transitive dependencies (vite, esbuild)
+- **Scope**: Dev-only; no production exposure (no `--ui` flag, no Vite dev server, no external build server)
+- **Risk Level**: Low for Phase 1 (local dev only)
+- **Mitigation**: Scheduled for dedicated security bump to Vitest 4.x in a later DEDICATED-TASK (separate from feature work)
+- **Test Coverage**: No changes to test behavior; CVEs are in test tooling, not test or production code
 
 ## Risks
 

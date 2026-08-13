@@ -1,7 +1,227 @@
 # System Patterns
 
+## System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Browser (React/Vite, Phase 3+)                                  │
+│ - User messages: POST /api/seasons/:seasonId/message            │
+│ - Transcript stream: GET /api/seasons/:seasonId/events (SSE)    │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                  [API Proxy via Vite]
+                         │
+┌────────────────────────▼────────────────────────────────────────┐
+│ Hono Backend (127.0.0.1:8787, localhost only)                   │
+│                                                                   │
+│  index.ts                                                        │
+│  ├─ /api/health → { status: "ok" }                             │
+│  └─ /api/seasons/:seasonId/events → SeasonEventBus SSE stream  │
+│                                                                   │
+│  SeasonSessionManager (season-session.ts)                       │
+│  └─ runTurn(seasonId, prompt, resumeSessionId?)                │
+│     ├─ Spawn: claude -p --resume <id> --output-format stream-json
+│     ├─ Parse: stream-parser.ts groups into NormalizedTurns      │
+│     └─ Persist: FileSessionStore saves session pointer         │
+│                                                                   │
+│  SeasonEventBus (sse.ts)                                        │
+│  └─ In-memory pub/sub, one channel per season                   │
+│     ├─ startTurn() — clears current-turn buffer                │
+│     ├─ publish(seasonId, payload) — broadcasts + buffers       │
+│     └─ subscribe(seasonId) — returns missed + listener callback │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                  [Local Filesystem]
+                         │
+┌────────────────────────▼────────────────────────────────────────┐
+│ Canon/ (Persistent State)                                        │
+│ └─ seasons/<seasonId>/.yts-session.json                        │
+│    (session pointer; future: draft files, turn metadata)        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Architecture Patterns
-[To be discovered as project evolves]
+
+### 1. Headless-Spawn-Per-Turn Pattern
+
+**Problem**: Need to run multi-turn conversations with the Claude API without maintaining a long-lived process connection.
+
+**Implementation**:
+- Each user message triggers a fresh spawn of `claude -p --resume <sessionId>` (see `season-session.ts`)
+- Process runs to completion, then exits
+- Session ID persisted to disk so next turn can `--resume` from same conversation
+- Process lifecycle is intentionally NOT coupled to SSE subscriber connections (AC-ASYNC-1)
+
+**Advantages**:
+- Simple crash recovery (no orphaned processes to clean up)
+- Scales linearly (no process pool management)
+- Each turn is isolated; no shared mutable state in the headless process
+
+**Tradeoff**:
+- Small overhead per turn (process spawn/exit); acceptable for interactive use
+
+**Key Files**:
+- `console/server/season-session.ts` — `runTurn()` function
+- `console/server/index.ts` — SSE endpoint integration
+
+### 2. Atomic File Write Pattern (Temp + Rename)
+
+**Problem**: Need to persist session pointers to disk without risk of partial writes on process crash.
+
+**Implementation** (in `season-session.ts`, `FileSessionStore.save()`):
+```
+1. mkdir -p <canonRoot>/seasons/<seasonId>
+2. writeFile <path>.tmp-<pid>-<timestamp> ← atomic, temp scope
+3. rename <path>.tmp-<pid>-<timestamp> → <path>.json ← atomic OS call
+```
+
+**Why This Matters**:
+- Rename is atomic at the OS level (POSIX guarantee)
+- Temp file prevents another process from reading a half-written state
+- PID + timestamp in temp name prevents collisions if multiple processes write to the same season
+
+**Reuse Plan**:
+- This pattern will be used for draft files in later phases (drafts/<seasonId>/<turn-id>-draft.json)
+- Establishes a single-writer file convention across the project
+
+**Key Files**:
+- `console/server/season-session.ts` — `FileSessionStore` class, `save()` method
+
+### 3. SeasonId Allowlist Validation Pattern (Defense in Depth)
+
+**Problem**: SeasonId comes from an untrusted HTTP route parameter; no auth/CORS gate in front of this server.
+
+**Attack Vector**: Path traversal (e.g., `..`, `../../etc/passwd`, `/etc/shadow`)
+
+**Implementation** (in `season-session.ts`):
+```typescript
+export function isValidSeasonId(seasonId: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(seasonId);
+}
+```
+
+**Defense-in-Depth Enforcement**:
+1. HTTP route entry point (`index.ts`, line 47) — reject before any downstream processing
+2. FileSessionStore initialization (`season-session.ts`, line 174) — re-validate in store impl
+3. SeasonEventBus channel keying (implicit in `sse.ts`) — validate before pub/sub
+
+**Why Multiple Checks**:
+- If one layer is bypassed (e.g., during refactoring), the next layer catches it
+- Each component is independently safe, not relying on caller discipline
+
+**Test Coverage**:
+- `console/server/index.test.ts` — HTTP route validation
+- `console/server/season-session.test.ts` — FileSessionStore path traversal rejection
+
+**Key Files**:
+- `console/server/season-session.ts` — `isValidSeasonId()` function
+- `console/server/index.ts` — route-level validation
+- `console/server/sse.ts` — implicit (channel keys are validated seasonIds)
+
+### 4. In-Memory Pub/Sub + Replay Buffer SSE Pattern
+
+**Problem**: Browser clients may connect mid-turn or reconnect after brief disconnect. They need to receive:
+- The current turn's events they missed (if subscribed after turn started)
+- All new events going forward
+
+**Implementation** (in `sse.ts`, `SeasonEventBus`):
+```
+Per-season channel:
+- buffer: SeasonStreamEvent[]  ← holds current turn's events
+- nextSeq: number             ← monotonic event counter (per turn)
+- listeners: Set<Listener>    ← active subscribers
+
+On subscribe:
+- Return missed events (buffer filtered by since parameter)
+- Add listener for live events
+- Both are delivered via same callback
+
+On publish:
+- Buffer event, increment seq
+- Notify all live listeners
+
+On turn boundary:
+- eventBus.startTurn(seasonId) clears buffer, resets seq to 0
+- New turn events start fresh at seq 0
+```
+
+**Replay Guarantee**:
+- Late subscriber connects mid-turn at seq 5 → receives buffered events 6+ (missed)
+- Next event at seq 10 is delivered live
+- Seq monotonically increases within a turn; resets per turn
+
+**Lifecycle**:
+- First turn: seq 0, 1, 2, ..., N
+- startTurn() resets seq to 0
+- Next turn: seq 0, 1, 2, ..., M
+- Buffer persists only for the current turn (bounded memory)
+
+**Future Enhancement** (Phase 3):
+- Full reconnect-replay semantics (persisting events across turn boundaries)
+- Will be layered on top of this pattern
+
+**Key Files**:
+- `console/server/sse.ts` — `SeasonEventBus` class
+- `console/server/index.ts` — SSE endpoint, subscribes and waits for unsubscribe signal
+
+### 5. Stream-JSON Parsing Adaptation Pattern
+
+**Problem**: `claude -p --output-format stream-json` outputs event stream at runtime. Need to parse it into a normalized turn model in real time.
+
+**Implementation** (in `stream-parser.ts`):
+- Adapted from `.agent-logs/claude_transcript_to_md.py`'s `group_into_turns()` (Python, file-based)
+- Runs on live stream instead of persisted JSONL
+- Turn grouping rule: user/assistant message event starts a turn; trailing tool_result events (emitted as user events) are appended to the current turn
+
+**Pipeline**:
+1. `parseStreamLine()` — parse one raw stdout line into JSON or ParseErrorEvent
+2. `groupIntoTurns()` — group JSON objects into NormalizedTurn[] by role
+3. `parseStreamJson()` — combine both, extract session ID and result event
+
+**No-Silent-Failures Rule**:
+- Malformed lines are surfaced in `parseErrors`, never silently dropped
+- Lets consumers decide how to handle (log, display, retry)
+
+**Session ID Handling**:
+- Re-read session ID from EVERY event (line 258–261), never assume it's stable across `--resume`
+- Stores the LAST session ID observed (may differ from the one passed to `--resume`)
+
+**Tool Results**:
+- Only grouped into the same turn if they follow a user message with tool_result content
+- Tool results without an open turn are surfaced as unknownEvents
+
+**Key Files**:
+- `console/server/stream-parser.ts` — all parsing functions
+- `console/server/season-session.ts` — `runTurn()` consumes parseStreamJson output
 
 ## Conventions
-[To be added]
+
+### File Organization
+- `console/server/*.ts` — Backend modules (no subdirectories in Phase 1; will grow per phase)
+- `console/server/*.test.ts` — Collocated test files (same directory as source)
+
+### Session Pointer Persistence
+- **Location**: `<canonRoot>/seasons/<seasonId>/.yts-session.json`
+- **Format**: JSON `{ seasonId, sessionId, updatedAt }`
+- **Write Pattern**: Atomic temp + rename (see pattern #2 above)
+- **Read Pattern**: Cached in SeasonSessionManager for a single turn; re-read fresh on next turn
+
+### Error Handling
+- No silent failures (e.g., malformed stream lines are captured in `parseErrors`)
+- Spawn failures surface as `crashed: true` with `stderr`
+- 500 errors for invalid seasonId return 400 (client error, not server error)
+
+### Async Patterns
+- `runTurn()` returns `Promise<RunTurnResult>` — resolves when process exits, not when first event arrives
+- `SeasonEventBus.subscribe()` is synchronous (returns immediately with missed events)
+- SSE subscriber receives live events via callback; connection close triggers unsubscribe
+
+### Type Safety
+- TypeScript strict mode enforced
+- Interfaces for domain models (NormalizedTurn, SessionRecord, SeasonStreamEvent)
+- ParseErrorEvent type for malformed input (no `any` strings)
+
+### Testing Pattern
+- Use injectable `SpawnFn` for test mocking (e.g., mock spawn to return a fake ChildProcessLike)
+- Use `InMemorySessionStore` in tests instead of FileSessionStore
+- HTTP routes tested via Hono's test utilities (see index.test.ts)
