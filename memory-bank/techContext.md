@@ -23,7 +23,7 @@
 
 ## Component Structure
 
-### `console/` — Hono + React/Vite Full-Stack App (Phase 1: Backend Only)
+### `console/` — Hono + React/Vite Full-Stack App (Phase 1-2: Backend Only)
 
 **Phase 1 Scope (Greenfield Backend):**
 - `console/server/` — Hono backend server
@@ -31,6 +31,11 @@
   - `season-session.ts` — Headless session manager and file-based session store
   - `sse.ts` — Server-Sent Events broadcast bus (in-memory pub/sub + replay buffer)
   - `stream-parser.ts` — TypeScript adaptation of `.agent-logs/claude_transcript_to_md.py`'s turn-grouping logic
+
+**Phase 2 Scope (Context Bundle + Skill Plumbing):**
+- `console/server/context-bundle.ts` — Context bundle assembly: reads canon files (series overview, character bibles, previous season summaries, continuity ledger) and renders them into a first-turn prompt prefix. Missing optional files degrade gracefully (omitted, never fabricated). Continuity ledger content is included verbatim, never paraphrased.
+- `.claude/skills/season-drafting/SKILL.md` — Prompt file (not TypeScript) defining conversational season-drafting logic: canon-aware questioning, thread-weaving, inline story-craft/canon-consistency checks, and maintenance of a draft file at `<CANON_ROOT>/seasons/<seasonId>/season.draft.json`. This skill does not implement signoff/approval (Phase 4) or output the draft directly to the user.
+- `console/fixtures/canon/` — Fixture canon tree for tests and local development: `series-overview.md`, `characters/*.md`, `seasons/<n>/season-*.md`, `continuity-ledger.md`. Follows the same directory structure as production canon.
 
 **Phase 3+: Frontend** (React/Vite) — will live in `console/` with its own `vite.config.ts`; dev workflow will proxy `/api` to this backend server.
 
@@ -77,10 +82,11 @@ Run all commands from the `console/` directory.
 - `console/server/sse.test.ts` — SeasonEventBus pub/sub and replay buffer behavior
 - `console/server/season-session.test.ts` — Session store (in-memory, file-based), spawn lifecycle, --resume behavior
 - `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point
+- `console/server/context-bundle.test.ts` — Context bundle assembly from canon files, graceful omission of missing files, first-turn-only bundle inclusion
 
 ### Test Count & Coverage
-- 25 tests total across 4 files
-- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation
+- 31 tests total across 5 files
+- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection
 
 ### Running Tests
 ```bash

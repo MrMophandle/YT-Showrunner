@@ -194,6 +194,38 @@ On turn boundary:
 - `console/server/stream-parser.ts` — all parsing functions
 - `console/server/season-session.ts` — `runTurn()` consumes parseStreamJson output
 
+### 6. Context Bundle Assembly Pattern (Verbatim-First, Graceful Omission)
+
+**Problem**: Need to seed a season-drafting conversation with canon context (series overview, character bibles, prior season summaries, unresolved threads) without fabricating or hallucinating missing pieces. Continuity ledger thread descriptions must never be paraphrased or summarized — the conversation must reference the exact wording from disk.
+
+**Implementation** (in `context-bundle.ts`, `assembleContextBundle` + `renderContextBundle`):
+```
+1. Read canon files from a configurable root (series-overview.md, characters/*.md, seasons/<n>/season-*.md, continuity-ledger.md)
+2. For each file, catch ENOENT and return null/[] — do not propagate the error
+3. Render only the sections whose source file was found
+4. Omit empty sections entirely — never render a heading with no content or a placeholder like "[no previous seasons]"
+5. Include continuity ledger content verbatim; never paraphrase or rewrite unresolved threads
+```
+
+**Why This Matters**:
+- Prevents hallucination: if the user's canon is incomplete (early in the show, no previous seasons yet), the conversation doesn't make up missing threads or try to fill gaps
+- Ensures thread fidelity: continuity ledger text is read byte-for-byte from disk and never rewritten, so the conversation can reference it with confidence
+- Graceful degradation: an incomplete canon tree (missing characters/ or seasons/ directory) does not break the conversation — it just omits that section
+
+**First-Turn-Only Inclusion** (via `buildTurnPrompt`):
+- First turn: context bundle prepended to user's message
+- Resumed turns (`--resume <sessionId>`): user's message only, since the bundle already lives in the resumed session's history
+- This prevents token waste and ensures the bundle isn't re-sent on every turn
+
+**Fixture Convention**:
+- Test/dev canon at `console/fixtures/canon/` follows the same directory structure as production canon
+- Allows local testing and fixtures to use the same assembly logic without mocking the filesystem
+
+**Key Files**:
+- `console/server/context-bundle.ts` — `assembleContextBundle()`, `renderContextBundle()`, `buildTurnPrompt()`
+- `console/server/season-session.ts` — `isValidSeasonId()` validation (reused for path-traversal defense in depth)
+- `.claude/skills/season-drafting/SKILL.md` — documents the conversational use of the context bundle
+
 ## Conventions
 
 ### File Organization
