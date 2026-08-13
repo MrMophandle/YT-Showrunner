@@ -5,3 +5,9 @@ memory-bank/.local/
 .agent-logs/claude/
 .agent-logs/telemetry/
 .agent-logs/telemetry.jsonl
+
+# Build/verify command logs (see CLAUDE.md Tool Usage Rules)
+.claude-logs/
+
+# OS
+.DS_Store

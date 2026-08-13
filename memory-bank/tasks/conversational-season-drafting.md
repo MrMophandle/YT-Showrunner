@@ -400,14 +400,14 @@ with whatever is actually chosen, since this task is what first populates them.
 ## Implementation Roadmap
 
 ### New Source Files (pin path + extension)
-- [ ] `console/server/index.ts` — Hono server entry point
-- [ ] `console/server/season-session.ts` — spawns/tracks headless `claude -p`
+- [x] `console/server/index.ts` — Hono server entry point
+- [x] `console/server/season-session.ts` — spawns/tracks headless `claude -p`
       processes, threads `--resume` across turns
-- [ ] `console/server/stream-parser.ts` — parses `stream-json` stdout into normalized
+- [x] `console/server/stream-parser.ts` — parses `stream-json` stdout into normalized
       turn events (adapts `.agent-logs/claude_transcript_to_md.py`'s
       `group_into_turns()` logic); no subagent-sidecar parsing (season-drafting is
       single-agent — see Scope Boundaries)
-- [ ] `console/server/sse.ts` — SSE endpoint, broadcasts normalized turn events
+- [x] `console/server/sse.ts` — SSE endpoint, broadcasts normalized turn events
 - [ ] `console/server/draft-watcher.ts` — watches the draft file, atomic-write aware
 - [ ] `console/server/statusline-probe.ts` — reads the last known statusLine
       rate-limit snapshot (best-effort)
@@ -426,7 +426,7 @@ with whatever is actually chosen, since this task is what first populates them.
       craft/canon checks, draft-file maintenance) — prompt-based, not app code
 
 ### Phases
-- [ ] Phase 1: Backend foundation — Hono server, session manager (spawn + resume),
+- [x] Phase 1: Backend foundation — Hono server, session manager (spawn + resume),
       stream-json/sidecar parser, SSE endpoint
 - [ ] Phase 2: Context bundle + Season Drafting skill — canon-context assembly,
       first-turn seeding, the skill itself
@@ -467,15 +467,45 @@ season-creation boundary was only implicit.
 
 ---
 
-## Execution State
+## Build Execution State
 
 **Build Status**: IDLE
-**Last Completed**: N/A
+**Current Build**: N/A (Phase 1 complete)
+**Last Completed**: Phase 1: Backend foundation (2026-08-12)
+**Phase Number**: 1 of 5
+**Is Multi-Phase**: YES
 **Can Resume**: NO
-**Backend Resolution**: CREATIVE CRITIQUE: anthropic — configured
 
-### Active Sub-Agents
-(none)
+### Current Build Step
+**Step**: Step 11 - Git Completion
+**Status**: COMPLETE
+**Completed**: 2026-08-12
 
 ### Completed Steps
-(none)
+- Step 0.5 Git Setup: COMPLETE (2026-08-12) - Already on feature/conversational-season-drafting at project root; no separate worktree needed
+- Step 0.6 Phase Gate: COMPLETE (2026-08-12) - Roadmap populated, creative phases marked complete
+- Step 1 Read Task Context: COMPLETE (2026-08-12) - Phase 1 of 5 identified (Backend foundation)
+- Step 2 Load Context: COMPLETE (2026-08-12) - Level 4 rules
+- Step 3 TDD Agent: COMPLETE (2026-08-12) - console/ bootstrapped (Hono+TS+Vitest+npm); index.ts, season-session.ts, stream-parser.ts, sse.ts; 11 tests RED->GREEN
+- Step 6/7 Integration Verification: COMPLETE (2026-08-12) - npm test 11/11 PASS, typecheck PASS, build/lint N/A (not configured this phase)
+- Step 8 Code Review: COMPLETE (2026-08-12) - 1 blocking finding (path traversal via unvalidated seasonId in FileSessionStore.pointerPath) -> fixed via TDD agent (isValidSeasonId allowlist at store + route boundary, 14 new tests) -> re-verified 25/25 PASS -> re-reviewed APPROVED
+- Step 9 Documentation: COMPLETE (2026-08-12) - techContext.md, systemPatterns.md, productBrief.md populated (commit edd7d1a)
+- Step 10 Memory Bank Update: COMPLETE (2026-08-12) - tasks/conversational-season-drafting.md phase checkbox + source-file checkboxes marked [x]
+- Step 11 Git Completion: COMPLETE (2026-08-12) - phase commit + push to feature/conversational-season-drafting
+
+### Sub-Agents
+- TDD Agent (Phase 1 implementation): COMPLETE - 4 production files, 3 test files, 11 tests
+- Verifier Agent (Step 7, 1st pass): COMPLETE - PASS (11/11 tests, typecheck clean)
+- Code Reviewer Agent (Step 8, 1st pass): COMPLETE - CHANGES REQUIRED (1 blocking: path traversal)
+- TDD Agent (fix): COMPLETE - isValidSeasonId validator + 14 tests, 25/25 passing
+- Verifier Agent (Step 7, 2nd pass): COMPLETE - PASS (25/25 tests, typecheck clean)
+- Code Reviewer Agent (Step 8, 2nd pass): COMPLETE - APPROVED
+- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md, productBrief.md updated
+
+### Guard & Recovery Log
+(none - commit-guard passed on first run after the phase commit)
+
+### Resumption Notes
+**Can Resume**: NO
+**Resume From**: N/A
+**Notes**: Phase 1 complete and committed. Next /bmb:build invocation should pick up Phase 2 (Context bundle + Season Drafting skill).
