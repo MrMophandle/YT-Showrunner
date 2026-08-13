@@ -411,7 +411,7 @@ with whatever is actually chosen, since this task is what first populates them.
 - [ ] `console/server/draft-watcher.ts` — watches the draft file, atomic-write aware
 - [ ] `console/server/statusline-probe.ts` — reads the last known statusLine
       rate-limit snapshot (best-effort)
-- [ ] `console/server/context-bundle.ts` — assembles the canon context bundle
+- [x] `console/server/context-bundle.ts` — assembles the canon context bundle
       (series overview, character bibles, previous seasons, unresolved threads)
       for the first-turn prompt
 - [ ] `console/src/pages/SeasonChat.tsx` — Season Chat view
@@ -421,14 +421,14 @@ with whatever is actually chosen, since this task is what first populates them.
 - [ ] `console/src/components/SignoffPanel.tsx` — approve / reject-with-notes UI
 - [ ] `console/src/components/DiagnosticsPanel.tsx` — context usage + best-effort
       plan usage
-- [ ] `.claude/skills/season-drafting/SKILL.md` — the Season Drafting skill
+- [x] `.claude/skills/season-drafting/SKILL.md` — the Season Drafting skill
       (conversational logic: canon-aware question-asking, thread-weaving, inline
       craft/canon checks, draft-file maintenance) — prompt-based, not app code
 
 ### Phases
 - [x] Phase 1: Backend foundation — Hono server, session manager (spawn + resume),
       stream-json/sidecar parser, SSE endpoint
-- [ ] Phase 2: Context bundle + Season Drafting skill — canon-context assembly,
+- [x] Phase 2: Context bundle + Season Drafting skill — canon-context assembly,
       first-turn seeding, the skill itself
 - [ ] Phase 3: Season Chat + Draft Preview UI — live turn rendering, draft-file
       watcher wired to the preview panel
@@ -469,43 +469,40 @@ season-creation boundary was only implicit.
 
 ## Build Execution State
 
-**Build Status**: IDLE
-**Current Build**: N/A (Phase 1 complete)
-**Last Completed**: Phase 1: Backend foundation (2026-08-12)
-**Phase Number**: 1 of 5
+**Build Status**: RUNNING
+**Current Build**: Phase 2: Context bundle + Season Drafting skill
+**Phase Number**: 2 of 5
 **Is Multi-Phase**: YES
-**Can Resume**: NO
+**Build Started**: 2026-08-12
+**Can Resume**: YES
 
 ### Current Build Step
 **Step**: Step 11 - Git Completion
-**Status**: COMPLETE
-**Completed**: 2026-08-12
+**Status**: RUNNING
+**Started**: 2026-08-12
 
 ### Completed Steps
 - Step 0.5 Git Setup: COMPLETE (2026-08-12) - Already on feature/conversational-season-drafting at project root; no separate worktree needed
 - Step 0.6 Phase Gate: COMPLETE (2026-08-12) - Roadmap populated, creative phases marked complete
-- Step 1 Read Task Context: COMPLETE (2026-08-12) - Phase 1 of 5 identified (Backend foundation)
+- Step 1 Read Task Context: COMPLETE (2026-08-12) - Phase 2 of 5 identified (Context bundle + Season Drafting skill)
 - Step 2 Load Context: COMPLETE (2026-08-12) - Level 4 rules
-- Step 3 TDD Agent: COMPLETE (2026-08-12) - console/ bootstrapped (Hono+TS+Vitest+npm); index.ts, season-session.ts, stream-parser.ts, sse.ts; 11 tests RED->GREEN
-- Step 6/7 Integration Verification: COMPLETE (2026-08-12) - npm test 11/11 PASS, typecheck PASS, build/lint N/A (not configured this phase)
-- Step 8 Code Review: COMPLETE (2026-08-12) - 1 blocking finding (path traversal via unvalidated seasonId in FileSessionStore.pointerPath) -> fixed via TDD agent (isValidSeasonId allowlist at store + route boundary, 14 new tests) -> re-verified 25/25 PASS -> re-reviewed APPROVED
-- Step 9 Documentation: COMPLETE (2026-08-12) - techContext.md, systemPatterns.md, productBrief.md populated (commit edd7d1a)
+- Step 3 TDD Agent: COMPLETE (2026-08-12) - context-bundle.ts (+test), fixtures/canon/*, .claude/skills/season-drafting/SKILL.md; 6 new tests RED->GREEN (31/31 total)
+- Step 6/7 Integration Verification: COMPLETE (2026-08-12) - npm test 31/31 PASS, typecheck PASS, build/lint N/A (not configured)
+- Step 8 Code Review: COMPLETE (2026-08-12) - APPROVED with 1 recommended (non-blocking) finding (missing .md filter in readDirAsDocs) -> applied directly by orchestrator -> re-verified 31/31 PASS, typecheck clean
+- Step 9 Documentation: COMPLETE (2026-08-12) - techContext.md (+31 test count, new module/skill/fixtures), systemPatterns.md (Pattern #6: Context Bundle Assembly) updated; productBrief.md skipped (no user-facing change) (commit 7d54ff2)
 - Step 10 Memory Bank Update: COMPLETE (2026-08-12) - tasks/conversational-season-drafting.md phase checkbox + source-file checkboxes marked [x]
-- Step 11 Git Completion: COMPLETE (2026-08-12) - phase commit + push to feature/conversational-season-drafting
+- Step 11 Git Completion: IN PROGRESS (2026-08-12) - committing phase code + task file
 
 ### Sub-Agents
-- TDD Agent (Phase 1 implementation): COMPLETE - 4 production files, 3 test files, 11 tests
-- Verifier Agent (Step 7, 1st pass): COMPLETE - PASS (11/11 tests, typecheck clean)
-- Code Reviewer Agent (Step 8, 1st pass): COMPLETE - CHANGES REQUIRED (1 blocking: path traversal)
-- TDD Agent (fix): COMPLETE - isValidSeasonId validator + 14 tests, 25/25 passing
-- Verifier Agent (Step 7, 2nd pass): COMPLETE - PASS (25/25 tests, typecheck clean)
-- Code Reviewer Agent (Step 8, 2nd pass): COMPLETE - APPROVED
-- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md, productBrief.md updated
+- TDD Agent (Phase 2 implementation): COMPLETE - context-bundle.ts + test, 5 fixture files, SKILL.md; 6 tests (31/31 total)
+- Verifier Agent (Step 7): COMPLETE - PASS (31/31 tests, typecheck clean)
+- Code Reviewer Agent (Step 8): COMPLETE - APPROVED (1 recommended, non-blocking) -> fix applied by orchestrator, re-verified green
+- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md updated; committed separately (7d54ff2)
 
 ### Guard & Recovery Log
-(none - commit-guard passed on first run after the phase commit)
+(none yet this phase)
 
 ### Resumption Notes
-**Can Resume**: NO
-**Resume From**: N/A
-**Notes**: Phase 1 complete and committed. Next /bmb:build invocation should pick up Phase 2 (Context bundle + Season Drafting skill).
+**Can Resume**: YES
+**Resume From**: Step 11 - Git Completion (commit + push)
+**Notes**: Phase 2 implementation, verification, review, and docs all complete and green. Only the phase commit + push + commit-guard remain.
