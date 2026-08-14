@@ -226,6 +226,39 @@ On turn boundary:
 - `console/server/season-session.ts` — `isValidSeasonId()` validation (reused for path-traversal defense in depth)
 - `.claude/skills/season-drafting/SKILL.md` — documents the conversational use of the context bundle
 
+### 7. Last-Good-State Graceful Degradation Pattern (Defensive Read)
+
+**Problem**: A file is being written atomically (via temp + rename) by an external process, and a reader may attempt to read during the brief window between temp-file write and rename. A torn or partial read should never surface as a new state to the UI — the reader must keep serving the last successfully parsed state instead.
+
+**Implementation** (in `draft-watcher.ts`, `pollOnce()`):
+```
+1. Attempt to read file
+2. If ENOENT: return last-good state (no draft written yet)
+3. If read fails (permissions, I/O): throw (a "real" error, surface to caller)
+4. If parse fails (malformed JSON): return last-good state, retry next poll
+5. If structure validation fails (wrong schema): return last-good state, retry next poll
+6. If parse succeeds: update last-good, notify listeners, return updated
+```
+
+**Why This Matters** (AC-ASYNC-3):
+- Torn reads are transient: the next poll will retry and succeed once the atomic rename completes
+- UI never "flashes" a broken or incomplete state to the user
+- Last-good is preserved in memory across polls; if the file disappears, the panel still shows the previous draft
+- Distinguishes transient read failures (retry silently) from real errors (throw, surface to caller)
+
+**Trade-offs**:
+- Draft updates may lag by up to one poll interval if a read fails (typically 500ms–1s)
+- Caller cannot distinguish "still reading the old draft" from "no update since last poll"
+- Requires structural validation (not just JSON.parse) to catch schema mismatches
+
+**Reuse Plan**:
+- This pattern will be used by all file-read surfaces that must be resilient to concurrent atomic writes (session pointers, draft files, future canon-state caches)
+- Establishes a convention: "on read failure, keep serving what you already have"
+
+**Key Files**:
+- `console/server/draft-watcher.ts` — `DraftWatcher.pollOnce()`, `isSeasonDraft()` structural validator
+- `console/src/components/DraftPreview.tsx` — mirrors this pattern on the client side (ignores 204 responses, keeps last state)
+
 ## Conventions
 
 ### File Organization
