@@ -36,9 +36,10 @@ The engineering-facing "what is this repository" — formerly `projectbrief.md`.
 
 Core capabilities this product provides:
 
-- [Core capability 1]
-- [Core capability 2]
-- [Core capability 3]
+- **Conversational Season Drafting** (Phase 2-4) — User converses with Claude AI to draft a season's episodes. The system maintains canon context (series overview, character bibles, continuity ledger) throughout the conversation and streams responses in real-time.
+- **Draft Preview** (Phase 3) — Live-updating panel showing the current draft (title, logline, threads for each episode) as Claude composes. Polls the server for the last-good draft, gracefully handling in-flight writes.
+- **Draft Signoff** (Phase 4) — User can approve the current draft (commits to canon: renders season markdown file and appends dated entry to continuity ledger with addressed threads), or reject with notes (resumes the session with feedback, streaming reply into the same conversation).
+- [Additional capability if needed]
 
 ## Markets Serviced
 

@@ -418,7 +418,7 @@ with whatever is actually chosen, since this task is what first populates them.
 - [x] `console/src/components/TranscriptTurn.tsx` — renders one chat turn
       (text/tool calls/collapsible thinking)
 - [x] `console/src/components/DraftPreview.tsx` — live season-slate-in-progress view
-- [ ] `console/src/components/SignoffPanel.tsx` — approve / reject-with-notes UI
+- [x] `console/src/components/SignoffPanel.tsx` — approve / reject-with-notes UI
 - [ ] `console/src/components/DiagnosticsPanel.tsx` — context usage + best-effort
       plan usage
 - [x] `.claude/skills/season-drafting/SKILL.md` — the Season Drafting skill
@@ -432,7 +432,7 @@ with whatever is actually chosen, since this task is what first populates them.
       first-turn seeding, the skill itself
 - [x] Phase 3: Season Chat + Draft Preview UI — live turn rendering, draft-file
       watcher wired to the preview panel
-- [ ] Phase 4: Signoff flow — approve (commit to canon) / reject-with-notes (back
+- [x] Phase 4: Signoff flow — approve (commit to canon) / reject-with-notes (back
       into the resumed conversation)
 - [ ] Phase 5: Diagnostics panel — context usage (from stream-json usage fields),
       best-effort plan usage (statusLine probe)
@@ -470,9 +470,9 @@ season-creation boundary was only implicit.
 ## Build Execution State
 
 **Build Status**: IDLE
-**Current Build**: N/A (Phase 3 complete)
-**Last Completed**: Phase 3: Season Chat + Draft Preview UI (2026-08-13)
-**Phase Number**: 3 of 5
+**Current Build**: N/A (Phase 4 complete)
+**Last Completed**: Phase 4: Signoff flow (2026-08-13)
+**Phase Number**: 4 of 5
 **Is Multi-Phase**: YES
 **Can Resume**: NO
 
@@ -484,25 +484,31 @@ season-creation boundary was only implicit.
 ### Completed Steps
 - Step 0.5 Git Setup: COMPLETE (2026-08-13) - Already on feature/conversational-season-drafting at project root; no separate worktree needed
 - Step 0.6 Phase Gate: COMPLETE (2026-08-13) - Roadmap populated, creative phases marked complete
-- Step 1 Read Task Context: COMPLETE (2026-08-13) - Phase 3 of 5 identified (Season Chat + Draft Preview UI)
+- Step 1 Read Task Context: COMPLETE (2026-08-13) - Phase 4 of 5 identified (Signoff flow)
 - Step 2 Load Context: COMPLETE (2026-08-13) - Level 4 rules
-- Step 3 TDD Agent: COMPLETE (2026-08-13) - draft-watcher.ts(+test), TranscriptTurn.tsx(+test), DraftPreview.tsx(+test), SeasonChat.tsx, App.tsx/main.tsx, first React/Vite client scaffolding; GET /api/seasons/:seasonId/draft route added to index.ts; 9 new tests RED->GREEN (40/40 total)
-- Step 6/7 Integration Verification: COMPLETE (2026-08-13) - npm test 40/40 PASS, typecheck PASS, vite build PASS, lint N/A (not configured)
-- Step 8 Code Review: COMPLETE (2026-08-13) - APPROVED WITH RECOMMENDATIONS (0 blocking; 3 recommended: shared types module, useSeasonEvents hook, confirm draft-watcher start/stop scaffolding intentional; dependency audit: react-router 6.x moderate advisories assessed non-exploitable, deferred to future major bump)
-- Step 9 Documentation: COMPLETE (2026-08-13) - techContext.md (frontend stack, component structure, draft route, 40 test count, react-router security deferral), systemPatterns.md (Pattern #7: Last-Good-State Graceful Degradation) updated; productBrief.md skipped (no user-facing change, composer not yet wired) (commit fbf6d7d)
-- Step 10 Memory Bank Update: COMPLETE (2026-08-13) - tasks/conversational-season-drafting.md phase checkbox + source-file checkboxes marked [x]
+- Step 3 TDD Agent: COMPLETE (2026-08-13) - canon-commit.ts(+test), SignoffPanel.tsx(+test); POST /api/seasons/:seasonId/approve and /reject routes added to index.ts; SeasonChat.tsx wired to SignoffPanel; 9 new tests RED->GREEN (50/50 total)
+- Step 6/7 Integration Verification: COMPLETE (2026-08-13) - npm test 50/50 PASS, typecheck PASS, lint N/A (not configured)
+- Step 8 Code Review (1st pass): COMPLETE (2026-08-13) - CHANGES REQUESTED (1 blocking: reject route returned false-success 200 on a crashed turn, violating AC-ERROR-1; 2 non-blocking recommendations: ledger read-modify-write race, duplicated draft-polling logic)
+- Fix pass: COMPLETE (2026-08-13) - reject route now returns 502 + {error,crashed,exitCode} on crash; SignoffPanel renders inline alert instead of false success; 2 new tests RED->GREEN (52/52 total)
+- Step 6/7 Re-verification: COMPLETE (2026-08-13) - npm test 52/52 PASS, typecheck PASS
+- Step 8 Code Review (2nd pass): COMPLETE (2026-08-13) - APPROVED WITH RECOMMENDATIONS (0 blocking; the 2 non-blocking recommendations carried forward: ledger read-modify-write race, duplicated draft-polling logic between SignoffPanel and DraftPreview; dependency audit: no new dependencies added)
+- Step 9 Documentation: COMPLETE (2026-08-13) - techContext.md (new routes, canon-commit.ts module, updated test count to 52/10 files, carried-forward non-blocking items), systemPatterns.md (Atomic File Write Pattern extended with ledger-append use case + race note), productBrief.md (Key Functionality: Conversational Season Drafting, Draft Preview, Draft Signoff)
+- Step 10 Memory Bank Update: COMPLETE (2026-08-13) - tasks/conversational-season-drafting.md phase checkbox + source-file checkbox marked [x]
 - Step 11 Git Completion: COMPLETE (2026-08-13) - commit-guard PASS, pushed to feature/conversational-season-drafting
 
 ### Sub-Agents
-- TDD Agent (Phase 3 implementation): COMPLETE - 9 new tests (40/40 total); first React/Vite frontend surface in repo
-- Verifier Agent (Step 7): COMPLETE - PASS (40/40 tests, typecheck clean, vite build clean)
-- Code Reviewer Agent (Step 8): COMPLETE - APPROVED WITH RECOMMENDATIONS (0 blocking)
-- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md updated + inline comments; committed separately (fbf6d7d)
+- TDD Agent (Phase 4 implementation): COMPLETE - 9 new tests (50/50 total)
+- Verifier Agent (Step 7, 1st pass): COMPLETE - PASS (50/50 tests, typecheck clean)
+- Code Reviewer Agent (Step 8, 1st pass): COMPLETE - CHANGES REQUESTED (1 blocking: AC-ERROR-1 violation on reject-crash path)
+- TDD Agent (fix pass): COMPLETE - 2 new tests (52/52 total); reject route now surfaces crashed turns as 502, not false-success 200
+- Verifier Agent (Step 7, 2nd pass): COMPLETE - PASS (52/52 tests, typecheck clean)
+- Code Reviewer Agent (Step 8, 2nd pass): COMPLETE - APPROVED WITH RECOMMENDATIONS (0 blocking)
+- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md, productBrief.md updated + inline comments verified
 
 ### Guard & Recovery Log
-(none yet for Phase 3 - commit-guard run pending as part of Step 11)
+(none for Phase 4 build steps themselves - commit-guard run as part of Step 11; see Step 8's own review-loop above for the one CHANGES REQUESTED -> fix -> re-verify -> APPROVED cycle, which is the code-review gate operating as designed, not a guard failure)
 
 ### Resumption Notes
 **Can Resume**: NO
 **Resume From**: N/A
-**Notes**: Phase 3 complete. Next /bmb:build invocation should pick up Phase 4 (Signoff flow: approve/commit to canon, reject-with-notes back into resumed session). Deferred items to carry forward: composer is present but not wired to POST (deliberate — belongs to AC-ERROR-1/AC-ASYNC-4); react-router 6.x dependency security advisories tracked for a future major-version bump; code-review recommends extracting console/src/shared/ types module and a useSeasonEvents(seasonId) hook before Phase 4/5 add more frontend surface.
+**Notes**: Phase 4 complete. Next /bmb:build invocation should pick up Phase 5 (Diagnostics panel: context usage from stream-json usage fields, best-effort plan usage via statusLine probe). Deferred items to carry forward: composer is still present but not wired to POST (deliberate — belongs to AC-ERROR-1/AC-ASYNC-4 for the general chat path); react-router 6.x dependency security advisories tracked for a future major-version bump; ledger read-modify-write race in canon-commit.ts (concurrent approvals across different seasons could lose a ledger append — low-likelihood for a single-user local tool); duplicated draft-polling useEffect between SignoffPanel.tsx and DraftPreview.tsx (recommended shared useSeasonDraft(seasonId) hook still not extracted, now duplicated twice instead of flagged once).

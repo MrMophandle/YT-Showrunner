@@ -55,7 +55,17 @@
 - `console/vite.config.ts` — Vite frontend build config with react plugin
 - `console/tsconfig.json` — TypeScript config for frontend (includes `src/**`, `jsx: react-jsx`, DOM lib)
 
-**Phase 4+: Signoff & Diagnostics** (deferred) — approve/reject logic, context-usage math, plan-usage probe.
+**Phase 4 Scope (Signoff: Approve/Reject):**
+- `console/server/canon-commit.ts` — Commits an approved SeasonDraft to canon via two atomic writes: (1) rendered markdown season file at `<canonRoot>/seasons/<seasonId>/season-<n>.md` using temp+rename pattern matching FileSessionStore, (2) dated entry appended to `<canonRoot>/continuity-ledger.md` listing the approved episodes' threads. Pure commit of draft as-is (no regeneration or model call); ledger-append is append-only (fuzzy thread-matching deliberately out of scope). Exports `commitDraftToCanon()` function and injectable test options for all three file operations (mkdir, write, rename, read).
+- `console/server/index.ts` (modified) — New routes: `POST /api/seasons/:seasonId/approve` (calls `commitDraftToCanon()`, returns 400 if no draft or empty, 200 on success with file paths) and `POST /api/seasons/:seasonId/reject` (resumes session, streams reply to transcript via SSE, returns 200 on turn completion or 502 on crash per AC-ERROR-1).
+- `console/src/components/SignoffPanel.tsx` — Approve/reject-with-notes UI. Polls `/api/seasons/:seasonId/draft` (using same fetch-injection pattern as DraftPreview) to enable Approve button only when >=1 episode exists. Approve POSTs `/approve` and shows file names on success. Reject textarea + button POSTs `{ notes }` to `/reject`; on success shows "notes sent" confirmation, on 502 shows `role="alert"` error (AC-ERROR-1 compliance — no false success).
+- `console/src/pages/SeasonChat.tsx` (modified) — Now renders `<SignoffPanel seasonId={seasonId} />` instead of placeholder Signoff section.
+
+**Known non-blocking items from Phase 4 code review:**
+1. **Ledger read-modify-write race**: `canon-commit.ts` reads existing `continuity-ledger.md` content then atomically writes the concatenation. Two concurrent approvals across different seasons could race; one's ledger append could be lost. Low-likelihood for a single-user local tool; flagged for awareness, not fixed in this phase.
+2. **Duplicated draft-polling logic**: `SignoffPanel.tsx`'s draft-polling `useEffect` mirrors `DraftPreview.tsx`'s near-identically. A shared `useSeasonDraft(seasonId)` hook was recommended (also flagged after Phase 3) but remains unextracted — now duplicated in two places.
+
+**Phase 5+: Diagnostics & Message Send** (deferred) — context-usage math, plan-usage probe, composer integration.
 
 ### API Endpoints
 
@@ -64,6 +74,8 @@
 | `GET` | `/api/health` | Liveness check; returns `{ status: "ok" }` |
 | `GET` | `/api/seasons/:seasonId/events` | Server-Sent Events stream for a season's conversation turns and transcript deltas. Query param `?since=<seq>` for resumption; omit to receive full current-turn buffer. |
 | `GET` | `/api/seasons/:seasonId/draft` | Returns the last successfully parsed draft file (`season.draft.json`). Returns 200 with SeasonDraft JSON, 204 if no draft exists yet, or 400 if seasonId is invalid. Torn/partial reads are never surfaced; the endpoint keeps serving the last-good draft (AC-ASYNC-3). |
+| `POST` | `/api/seasons/:seasonId/approve` | Approves the current draft and commits it to canon (Phase 4, AC-HAPPY-4). Requires >=1 episode in the draft; returns 200 `{ seasonFile, ledgerFile }` on success, 400 if no draft or empty draft, 502 if the commit operation fails. No regeneration or model call. |
+| `POST` | `/api/seasons/:seasonId/reject` | Rejects the current draft with notes (Phase 4, AC-HAPPY-5). Resumes the season's session server-side and sends the notes as the next message; reply streams into the existing SSE channel. Requires non-empty `notes` field in request body JSON. Returns 200 `{ crashed: false, exitCode, sessionId }` on success, 400 if notes empty or invalid JSON, 502 if the resumed turn crashes (AC-ERROR-1). |
 
 **Response Format (SSE)**: One JSON object per event with fields `{ seq: number, payload: any }`.
 
@@ -113,15 +125,18 @@ Run all commands from the `console/` directory.
 - `console/server/stream-parser.test.ts` — Stream-json parsing, turn grouping
 - `console/server/sse.test.ts` — SeasonEventBus pub/sub and replay buffer behavior
 - `console/server/season-session.test.ts` — Session store (in-memory, file-based), spawn lifecycle, --resume behavior
-- `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point
+- `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point (updated Phase 4: added tests for `/approve` and `/reject`)
 - `console/server/context-bundle.test.ts` — Context bundle assembly from canon files, graceful omission of missing files, first-turn-only bundle inclusion
 - `console/server/draft-watcher.test.ts` — Draft file polling, torn-read handling, last-good graceful degradation (AC-ASYNC-3), structural validation (Phase 3)
+- `console/server/canon-commit.test.ts` — Canon file commit (atomic temp+rename for both season file and ledger), test-injectable filesystem operations, seasonId validation, ledger formatting (Phase 4)
 - `console/src/components/TranscriptTurn.test.tsx` — Turn rendering (text, tool calls, collapsible thinking) (Phase 3)
 - `console/src/components/DraftPreview.test.tsx` — Draft polling, empty state, last-good-on-error behavior (Phase 3)
+- `console/src/components/SignoffPanel.test.tsx` — Approve/reject UI, draft polling state, approval/rejection flow, error handling for 502 crashes (Phase 4)
 
 ### Test Count & Coverage
-- 40 tests total across 8 files
-- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection, draft-file torn-read handling, React component rendering and state updates
+- 52 tests total across 10 files (was 41 across 8 files in Phase 3)
+- Phase 4 added: 4 tests in canon-commit.test.ts (commit flow, atomic write, ledger formatting), 5 tests in index.test.ts for new routes (`/approve` route, `/reject` route, error cases), 2 tests in SignoffPanel.test.tsx (approve/reject button states and submissions), plus 0 in existing files (total +11 tests)
+- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection, draft-file torn-read handling, canon commit atomicity, React component rendering and state updates, approval/rejection workflows
 
 ### Running Tests
 ```bash

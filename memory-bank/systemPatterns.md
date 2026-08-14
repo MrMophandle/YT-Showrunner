@@ -80,12 +80,19 @@
 - Temp file prevents another process from reading a half-written state
 - PID + timestamp in temp name prevents collisions if multiple processes write to the same season
 
+**Reuse in Phase 4 (Ledger Append)**:
+- Canon-commit writes both the season markdown file AND appends a dated section to `continuity-ledger.md`
+- Season file: fresh atomic write (straightforward)
+- Ledger file: read-modify-write (read existing content, append new section, atomic write)
+  - **Known Issue**: Concurrent approvals across different seasons could race on ledger writes; one's append could be lost. Low-likelihood for a single-user local tool. A future multi-user version would need a dedicated ledger-lock or event-log architecture.
+
 **Reuse Plan**:
 - This pattern will be used for draft files in later phases (drafts/<seasonId>/<turn-id>-draft.json)
 - Establishes a single-writer file convention across the project
 
 **Key Files**:
 - `console/server/season-session.ts` — `FileSessionStore` class, `save()` method
+- `console/server/canon-commit.ts` — `commitDraftToCanon()` and `atomicWrite()` helper (Phase 4)
 
 ### 3. SeasonId Allowlist Validation Pattern (Defense in Depth)
 

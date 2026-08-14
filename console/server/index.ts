@@ -14,17 +14,26 @@
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { commitDraftToCanon } from "./canon-commit.js";
 import { DraftWatcher } from "./draft-watcher.js";
-import { FileSessionStore, isValidSeasonId, SeasonSessionManager } from "./season-session.js";
+import { FileSessionStore, isValidSeasonId, SeasonSessionManager, type SpawnFn } from "./season-session.js";
 import { formatSseMessage, SeasonEventBus } from "./sse.js";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.YTS_CONSOLE_PORT ?? 8787);
 const CANON_ROOT = process.env.YTS_CANON_ROOT ?? "./Canon";
 
-export function createApp() {
-  const sessionStore = new FileSessionStore(CANON_ROOT);
-  const sessionManager = new SeasonSessionManager(sessionStore);
+export interface CreateAppOptions {
+  /** Overrides the module-level CANON_ROOT — used by tests to point at an isolated tmp dir. */
+  canonRoot?: string;
+  /** Injected into SeasonSessionManager — used by tests to fake the headless `claude` process. */
+  spawnFn?: SpawnFn;
+}
+
+export function createApp(options: CreateAppOptions = {}) {
+  const canonRoot = options.canonRoot ?? CANON_ROOT;
+  const sessionStore = new FileSessionStore(canonRoot);
+  const sessionManager = new SeasonSessionManager(sessionStore, options.spawnFn);
   const eventBus = new SeasonEventBus();
   // One DraftWatcher per season, created lazily on first request — mirrors
   // SeasonEventBus's per-seasonId channel map. seasonId is validated at every
@@ -35,7 +44,7 @@ export function createApp() {
   const getDraftWatcher = (seasonId: string): DraftWatcher => {
     let watcher = draftWatchers.get(seasonId);
     if (!watcher) {
-      watcher = new DraftWatcher({ canonRoot: CANON_ROOT, seasonId });
+      watcher = new DraftWatcher({ canonRoot, seasonId });
       draftWatchers.set(seasonId, watcher);
     }
     return watcher;
@@ -115,6 +124,79 @@ export function createApp() {
       return c.body(null, 204);
     }
     return c.json(draft);
+  });
+
+  /**
+   * Approves the season's current last-good draft (AC-HAPPY-4): commits it
+   * to canon exactly as-is — no regeneration, no second model call — and
+   * returns the paths written. 400 (not a crash) when there's nothing to
+   * approve yet, since "no draft" and "empty draft" are both valid,
+   * expected pre-approval states.
+   */
+  app.post("/api/seasons/:seasonId/approve", async (c) => {
+    const seasonId = c.req.param("seasonId");
+    if (!isValidSeasonId(seasonId)) {
+      return c.json({ error: "Invalid seasonId" }, 400);
+    }
+
+    const watcher = getDraftWatcher(seasonId);
+    await watcher.pollOnce();
+    const draft = watcher.getLastGood();
+
+    if (!draft || draft.episodes.length === 0) {
+      return c.json({ error: "No draft to approve" }, 400);
+    }
+
+    const result = await commitDraftToCanon({ canonRoot, seasonId, draft });
+    return c.json(result, 200);
+  });
+
+  /**
+   * Rejects the current draft with notes (AC-HAPPY-5): no canon file is
+   * ever written on this path. The notes are sent as the NEXT message in
+   * the SAME resumed session (SeasonSessionManager re-reads the persisted
+   * session id itself), and the reply streams into the same SSE channel
+   * the transcript already subscribes to — `startTurn` clears the
+   * current-turn buffer exactly as a composer-sent message would.
+   */
+  app.post("/api/seasons/:seasonId/reject", async (c) => {
+    const seasonId = c.req.param("seasonId");
+    if (!isValidSeasonId(seasonId)) {
+      return c.json({ error: "Invalid seasonId" }, 400);
+    }
+
+    let body: { notes?: unknown };
+    try {
+      body = (await c.req.json()) as { notes?: unknown };
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const notes = typeof body.notes === "string" ? body.notes.trim() : "";
+    if (notes.length === 0) {
+      return c.json({ error: "notes is required" }, 400);
+    }
+
+    eventBus.startTurn(seasonId);
+    const result = await sessionManager.sendMessage(seasonId, notes, {
+      onEvent: (event) => eventBus.publish(seasonId, event),
+    });
+
+    // AC-ERROR-1: a crashed resumed turn (non-zero exit, dead process, or a stream that
+    // closed without a terminal `result` event — see RunTurnResult.crashed) must never
+    // read as success to the caller. The transcript stream already carries whatever
+    // partial events arrived via eventBus.publish above; only the HTTP response shape
+    // changes here. stderr is intentionally omitted from the body (can be arbitrarily
+    // large / noisy) — exitCode plus a short message is enough for the client to show
+    // a clear error and point the user at the transcript.
+    if (result.crashed) {
+      return c.json(
+        { error: "The resumed turn crashed before completing", crashed: true, exitCode: result.exitCode },
+        502,
+      );
+    }
+
+    return c.json({ crashed: false, exitCode: result.exitCode, sessionId: result.sessionId }, 200);
   });
 
   return { app, sessionManager, eventBus, draftWatchers };

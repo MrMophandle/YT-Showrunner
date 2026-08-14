@@ -2,11 +2,10 @@
  * Season Chat view — route `/seasons/:seasonId/chat`. Composer + live
  * transcript + three side panels (Draft Preview, Signoff, Diagnostics).
  *
- * Signoff and Diagnostics are intentionally minimal placeholders in this
- * phase (their real logic — approve/reject-with-notes, context-usage math —
- * belongs to Phase 4 and Phase 5 respectively, both still unbuilt). They're
- * rendered here anyway so AC-ENTRY-1's empty-state requirements ("Signoff
- * panel whose Approve action is disabled") are met for the pieces in scope.
+ * Diagnostics remains an intentionally minimal placeholder in this phase
+ * (its real logic — context-usage math — belongs to Phase 5, still
+ * unbuilt). Signoff is now the real SignoffPanel (Phase 4:
+ * approve/reject-with-notes).
  *
  * Message-send wiring (spawning a turn from the composer) is deliberately
  * NOT implemented here: its behavior is defined by ACs that belong to later
@@ -19,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { groupIntoTurns, type NormalizedTurn } from "../../server/stream-parser.js";
 import { DraftPreview } from "../components/DraftPreview.js";
+import { SignoffPanel } from "../components/SignoffPanel.js";
 import { TranscriptTurn } from "../components/TranscriptTurn.js";
 
 export function SeasonChat() {
@@ -91,12 +91,7 @@ export function SeasonChat() {
       <aside className="season-chat__panels">
         <DraftPreview seasonId={seasonId} />
 
-        <section aria-label="Signoff" data-testid="signoff-panel">
-          <h3>Signoff</h3>
-          <button type="button" disabled>
-            Approve
-          </button>
-        </section>
+        <SignoffPanel seasonId={seasonId} />
 
         <section aria-label="Diagnostics" data-testid="diagnostics-panel">
           <h3>Diagnostics</h3>
