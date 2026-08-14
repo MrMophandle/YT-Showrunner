@@ -2,13 +2,13 @@
 slug: conversational-season-drafting
 legacy_id:
 feature: conversational-season-drafting
-status: PLANNING_COMPLETE
+status: BUILD_COMPLETE
 ---
 
 # conversational-season-drafting: Conversational Season Drafting
 
 **Complexity**: Level 4
-**Status**: PLANNING_COMPLETE
+**Status**: BUILD_COMPLETE
 **Roadmap**: conversational-season-drafting
 **Branch**: feature/conversational-season-drafting
 **Worktree**: N/A
@@ -409,7 +409,7 @@ with whatever is actually chosen, since this task is what first populates them.
       single-agent — see Scope Boundaries)
 - [x] `console/server/sse.ts` — SSE endpoint, broadcasts normalized turn events
 - [x] `console/server/draft-watcher.ts` — watches the draft file, atomic-write aware
-- [ ] `console/server/statusline-probe.ts` — reads the last known statusLine
+- [x] `console/server/statusline-probe.ts` — reads the last known statusLine
       rate-limit snapshot (best-effort)
 - [x] `console/server/context-bundle.ts` — assembles the canon context bundle
       (series overview, character bibles, previous seasons, unresolved threads)
@@ -419,7 +419,7 @@ with whatever is actually chosen, since this task is what first populates them.
       (text/tool calls/collapsible thinking)
 - [x] `console/src/components/DraftPreview.tsx` — live season-slate-in-progress view
 - [x] `console/src/components/SignoffPanel.tsx` — approve / reject-with-notes UI
-- [ ] `console/src/components/DiagnosticsPanel.tsx` — context usage + best-effort
+- [x] `console/src/components/DiagnosticsPanel.tsx` — context usage + best-effort
       plan usage
 - [x] `.claude/skills/season-drafting/SKILL.md` — the Season Drafting skill
       (conversational logic: canon-aware question-asking, thread-weaving, inline
@@ -434,7 +434,7 @@ with whatever is actually chosen, since this task is what first populates them.
       watcher wired to the preview panel
 - [x] Phase 4: Signoff flow — approve (commit to canon) / reject-with-notes (back
       into the resumed conversation)
-- [ ] Phase 5: Diagnostics panel — context usage (from stream-json usage fields),
+- [x] Phase 5: Diagnostics panel — context usage (from stream-json usage fields),
       best-effort plan usage (statusLine probe)
 
 ## Creative Phases
@@ -469,10 +469,10 @@ season-creation boundary was only implicit.
 
 ## Build Execution State
 
-**Build Status**: IDLE
-**Current Build**: N/A (Phase 4 complete)
-**Last Completed**: Phase 4: Signoff flow (2026-08-13)
-**Phase Number**: 4 of 5
+**Build Status**: COMPLETE
+**Current Build**: N/A (all 5 phases complete)
+**Last Completed**: Phase 5: Diagnostics panel (2026-08-13)
+**Phase Number**: 5 of 5
 **Is Multi-Phase**: YES
 **Can Resume**: NO
 
@@ -492,23 +492,28 @@ season-creation boundary was only implicit.
 - Fix pass: COMPLETE (2026-08-13) - reject route now returns 502 + {error,crashed,exitCode} on crash; SignoffPanel renders inline alert instead of false success; 2 new tests RED->GREEN (52/52 total)
 - Step 6/7 Re-verification: COMPLETE (2026-08-13) - npm test 52/52 PASS, typecheck PASS
 - Step 8 Code Review (2nd pass): COMPLETE (2026-08-13) - APPROVED WITH RECOMMENDATIONS (0 blocking; the 2 non-blocking recommendations carried forward: ledger read-modify-write race, duplicated draft-polling logic between SignoffPanel and DraftPreview; dependency audit: no new dependencies added)
+- Step 3 TDD Agent (Phase 5): COMPLETE (2026-08-13) - statusline-probe.ts(+test x5), DiagnosticsPanel.tsx(+test x6); GET /api/statusline route added to index.ts; SeasonChat.tsx wired to DiagnosticsPanel + transcript warning banner; 11 new tests RED->GREEN (63/63 total)
+- Step 7 Integration Verification (Phase 5): COMPLETE (2026-08-13) - npm test 63/63 PASS, typecheck PASS, build:client PASS, lint N/A (not configured)
+- Step 8 Code Review (Phase 5): COMPLETE (2026-08-13) - APPROVED (0 blocking; 1 recommended: YTS_STATUSLINE_SNAPSHOT_PATH documented but not wired to process.env, route always uses default path; 1 optional: PlanUsageState.reason widened to string, consistent with existing DraftPreview.tsx cast pattern); dependency audit: no new dependencies added
 - Step 9 Documentation: COMPLETE (2026-08-13) - techContext.md (new routes, canon-commit.ts module, updated test count to 52/10 files, carried-forward non-blocking items), systemPatterns.md (Atomic File Write Pattern extended with ledger-append use case + race note), productBrief.md (Key Functionality: Conversational Season Drafting, Draft Preview, Draft Signoff)
 - Step 10 Memory Bank Update: COMPLETE (2026-08-13) - tasks/conversational-season-drafting.md phase checkbox + source-file checkbox marked [x]
 - Step 11 Git Completion: COMPLETE (2026-08-13) - commit-guard PASS, pushed to feature/conversational-season-drafting
+- Step 3 TDD Agent (Phase 5): COMPLETE (2026-08-13) - statusline-probe.ts(+test x5), DiagnosticsPanel.tsx(+test x6); GET /api/statusline route added to index.ts; SeasonChat.tsx wired to DiagnosticsPanel + transcript warning banner; 11 new tests RED->GREEN (63/63 total)
+- Step 7 Integration Verification (Phase 5): COMPLETE (2026-08-13) - npm test 63/63 PASS, typecheck PASS, build:client PASS, lint N/A (not configured)
+- Step 8 Code Review (Phase 5): COMPLETE (2026-08-13) - APPROVED (0 blocking; 1 recommended: YTS_STATUSLINE_SNAPSHOT_PATH documented but not wired to process.env, route always uses default path; 1 optional: PlanUsageState.reason widened to string, consistent with existing DraftPreview.tsx cast pattern); dependency audit: no new dependencies added
+- Step 9 Documentation (Phase 5): COMPLETE (2026-08-13) - techContext.md (Phase 5 scope, /api/statusline route, test count 63/12 files, carried-forward known items), systemPatterns.md (Graceful Degradation pattern extended with Form B: Explicit Unavailable State), inline comments (statusline-probe.ts, DiagnosticsPanel.tsx, SeasonChat.tsx). NOTE: this agent committed its changes directly (commit ed19399, bundling the Phase 5 prod+test files alongside the doc updates) rather than leaving them staged for Step 11 — an artifact-integrity deviation from the standard flow, caught by the post-step seam check; content verified intact and consistent, so no recovery action was needed beyond accounting for it here.
+- Step 10 Memory Bank Update (Phase 5): COMPLETE (2026-08-13) - tasks/conversational-season-drafting.md: both remaining source-file checkboxes marked [x] (statusline-probe.ts, DiagnosticsPanel.tsx), Phase 5 checkbox marked [x], frontmatter + header status set to BUILD_COMPLETE (all 5 phases done)
 
 ### Sub-Agents
-- TDD Agent (Phase 4 implementation): COMPLETE - 9 new tests (50/50 total)
-- Verifier Agent (Step 7, 1st pass): COMPLETE - PASS (50/50 tests, typecheck clean)
-- Code Reviewer Agent (Step 8, 1st pass): COMPLETE - CHANGES REQUESTED (1 blocking: AC-ERROR-1 violation on reject-crash path)
-- TDD Agent (fix pass): COMPLETE - 2 new tests (52/52 total); reject route now surfaces crashed turns as 502, not false-success 200
-- Verifier Agent (Step 7, 2nd pass): COMPLETE - PASS (52/52 tests, typecheck clean)
-- Code Reviewer Agent (Step 8, 2nd pass): COMPLETE - APPROVED WITH RECOMMENDATIONS (0 blocking)
-- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md, productBrief.md updated + inline comments verified
+- TDD Agent (Phase 5): COMPLETE - 11 new tests (63/63 total); statusline-probe.ts, DiagnosticsPanel.tsx created; index.ts, SeasonChat.tsx modified
+- Verifier Agent (Step 7, Phase 5): COMPLETE - PASS (63/63 tests, typecheck clean, client build clean)
+- Code Reviewer Agent (Step 8, Phase 5): COMPLETE - APPROVED (0 blocking; 1 recommended, 1 optional, both non-blocking)
+- Documentation Agent (Step 9, Phase 5): COMPLETE - techContext.md, systemPatterns.md updated + inline comments added; self-committed (see note above)
 
 ### Guard & Recovery Log
-(none for Phase 4 build steps themselves - commit-guard run as part of Step 11; see Step 8's own review-loop above for the one CHANGES REQUESTED -> fix -> re-verify -> APPROVED cycle, which is the code-review gate operating as designed, not a guard failure)
+- Phase 5: Documentation Agent (Step 9) self-committed its changes (commit ed19399) instead of leaving the worktree dirty for the orchestrator's Step 11 commit — outside its documented scope ("committed to the feature branch at Step 11" per the methodology). Recovery: post-step artifact seam check found all reported files present and correct via `git show --stat`; no content was lost, so no re-dispatch was needed. Orchestrator (this build) added a second commit for the tasks/<slug>.md Execution State update rather than amending, per the "always create NEW commits" git rule. Root cause for /bmb:reflect: the documentation agent's system prompt may need to state explicitly not to run `git commit` (only Step 11/the orchestrator commits).
 
 ### Resumption Notes
 **Can Resume**: NO
 **Resume From**: N/A
-**Notes**: Phase 4 complete. Next /bmb:build invocation should pick up Phase 5 (Diagnostics panel: context usage from stream-json usage fields, best-effort plan usage via statusLine probe). Deferred items to carry forward: composer is still present but not wired to POST (deliberate — belongs to AC-ERROR-1/AC-ASYNC-4 for the general chat path); react-router 6.x dependency security advisories tracked for a future major-version bump; ledger read-modify-write race in canon-commit.ts (concurrent approvals across different seasons could lose a ledger append — low-likelihood for a single-user local tool); duplicated draft-polling useEffect between SignoffPanel.tsx and DraftPreview.tsx (recommended shared useSeasonDraft(seasonId) hook still not extracted, now duplicated twice instead of flagged once).
+**Notes**: All 5 phases complete. Task status is BUILD_COMPLETE. Next steps: /bmb:reflect (mandatory for Level 4) to create the reflection document, then /bmb:archive (mandatory for Level 4) to open the PR from feature/conversational-season-drafting to main. Deferred/carried-forward items for reflection and future work: (1) composer still not wired to POST — deliberate, belongs to AC-ERROR-1/AC-ASYNC-4 for the general chat-send path, never built in this task's scope; (2) react-router 6.x dependency security advisories (GHSA-wrjc-x8rr-h8h6, GHSA-337j-9hxr-rhxg) tracked for a future major-version bump; (3) ledger read-modify-write race in canon-commit.ts (low-likelihood, single-user local tool); (4) duplicated draft-polling useEffect across DraftPreview.tsx/SignoffPanel.tsx (recommended shared useSeasonDraft(seasonId) hook still not extracted); (5) YTS_STATUSLINE_SNAPSHOT_PATH documented but not wired to process.env in the /api/statusline route (Phase 5 code review, non-blocking); (6) the Documentation Agent self-committing instead of leaving changes staged (process deviation, flagged above for /bmb:reflect to root-cause).
