@@ -408,16 +408,16 @@ with whatever is actually chosen, since this task is what first populates them.
       `group_into_turns()` logic); no subagent-sidecar parsing (season-drafting is
       single-agent — see Scope Boundaries)
 - [x] `console/server/sse.ts` — SSE endpoint, broadcasts normalized turn events
-- [ ] `console/server/draft-watcher.ts` — watches the draft file, atomic-write aware
+- [x] `console/server/draft-watcher.ts` — watches the draft file, atomic-write aware
 - [ ] `console/server/statusline-probe.ts` — reads the last known statusLine
       rate-limit snapshot (best-effort)
 - [x] `console/server/context-bundle.ts` — assembles the canon context bundle
       (series overview, character bibles, previous seasons, unresolved threads)
       for the first-turn prompt
-- [ ] `console/src/pages/SeasonChat.tsx` — Season Chat view
-- [ ] `console/src/components/TranscriptTurn.tsx` — renders one chat turn
+- [x] `console/src/pages/SeasonChat.tsx` — Season Chat view
+- [x] `console/src/components/TranscriptTurn.tsx` — renders one chat turn
       (text/tool calls/collapsible thinking)
-- [ ] `console/src/components/DraftPreview.tsx` — live season-slate-in-progress view
+- [x] `console/src/components/DraftPreview.tsx` — live season-slate-in-progress view
 - [ ] `console/src/components/SignoffPanel.tsx` — approve / reject-with-notes UI
 - [ ] `console/src/components/DiagnosticsPanel.tsx` — context usage + best-effort
       plan usage
@@ -430,7 +430,7 @@ with whatever is actually chosen, since this task is what first populates them.
       stream-json/sidecar parser, SSE endpoint
 - [x] Phase 2: Context bundle + Season Drafting skill — canon-context assembly,
       first-turn seeding, the skill itself
-- [ ] Phase 3: Season Chat + Draft Preview UI — live turn rendering, draft-file
+- [x] Phase 3: Season Chat + Draft Preview UI — live turn rendering, draft-file
       watcher wired to the preview panel
 - [ ] Phase 4: Signoff flow — approve (commit to canon) / reject-with-notes (back
       into the resumed conversation)
@@ -470,39 +470,39 @@ season-creation boundary was only implicit.
 ## Build Execution State
 
 **Build Status**: IDLE
-**Current Build**: N/A (Phase 2 complete)
-**Last Completed**: Phase 2: Context bundle + Season Drafting skill (2026-08-12)
-**Phase Number**: 2 of 5
+**Current Build**: N/A (Phase 3 complete)
+**Last Completed**: Phase 3: Season Chat + Draft Preview UI (2026-08-13)
+**Phase Number**: 3 of 5
 **Is Multi-Phase**: YES
 **Can Resume**: NO
 
 ### Current Build Step
 **Step**: Step 11 - Git Completion
 **Status**: COMPLETE
-**Completed**: 2026-08-12
+**Completed**: 2026-08-13
 
 ### Completed Steps
-- Step 0.5 Git Setup: COMPLETE (2026-08-12) - Already on feature/conversational-season-drafting at project root; no separate worktree needed
-- Step 0.6 Phase Gate: COMPLETE (2026-08-12) - Roadmap populated, creative phases marked complete
-- Step 1 Read Task Context: COMPLETE (2026-08-12) - Phase 2 of 5 identified (Context bundle + Season Drafting skill)
-- Step 2 Load Context: COMPLETE (2026-08-12) - Level 4 rules
-- Step 3 TDD Agent: COMPLETE (2026-08-12) - context-bundle.ts (+test), fixtures/canon/*, .claude/skills/season-drafting/SKILL.md; 6 new tests RED->GREEN (31/31 total)
-- Step 6/7 Integration Verification: COMPLETE (2026-08-12) - npm test 31/31 PASS, typecheck PASS, build/lint N/A (not configured)
-- Step 8 Code Review: COMPLETE (2026-08-12) - APPROVED with 1 recommended (non-blocking) finding (missing .md filter in readDirAsDocs) -> applied directly by orchestrator -> re-verified 31/31 PASS, typecheck clean
-- Step 9 Documentation: COMPLETE (2026-08-12) - techContext.md (+31 test count, new module/skill/fixtures), systemPatterns.md (Pattern #6: Context Bundle Assembly) updated; productBrief.md skipped (no user-facing change) (commit 7d54ff2)
-- Step 10 Memory Bank Update: COMPLETE (2026-08-12) - tasks/conversational-season-drafting.md phase checkbox + source-file checkboxes marked [x]
-- Step 11 Git Completion: COMPLETE (2026-08-12) - commit 2476067, commit-guard PASS (prod=1 test=1), pushed to feature/conversational-season-drafting
+- Step 0.5 Git Setup: COMPLETE (2026-08-13) - Already on feature/conversational-season-drafting at project root; no separate worktree needed
+- Step 0.6 Phase Gate: COMPLETE (2026-08-13) - Roadmap populated, creative phases marked complete
+- Step 1 Read Task Context: COMPLETE (2026-08-13) - Phase 3 of 5 identified (Season Chat + Draft Preview UI)
+- Step 2 Load Context: COMPLETE (2026-08-13) - Level 4 rules
+- Step 3 TDD Agent: COMPLETE (2026-08-13) - draft-watcher.ts(+test), TranscriptTurn.tsx(+test), DraftPreview.tsx(+test), SeasonChat.tsx, App.tsx/main.tsx, first React/Vite client scaffolding; GET /api/seasons/:seasonId/draft route added to index.ts; 9 new tests RED->GREEN (40/40 total)
+- Step 6/7 Integration Verification: COMPLETE (2026-08-13) - npm test 40/40 PASS, typecheck PASS, vite build PASS, lint N/A (not configured)
+- Step 8 Code Review: COMPLETE (2026-08-13) - APPROVED WITH RECOMMENDATIONS (0 blocking; 3 recommended: shared types module, useSeasonEvents hook, confirm draft-watcher start/stop scaffolding intentional; dependency audit: react-router 6.x moderate advisories assessed non-exploitable, deferred to future major bump)
+- Step 9 Documentation: COMPLETE (2026-08-13) - techContext.md (frontend stack, component structure, draft route, 40 test count, react-router security deferral), systemPatterns.md (Pattern #7: Last-Good-State Graceful Degradation) updated; productBrief.md skipped (no user-facing change, composer not yet wired) (commit fbf6d7d)
+- Step 10 Memory Bank Update: COMPLETE (2026-08-13) - tasks/conversational-season-drafting.md phase checkbox + source-file checkboxes marked [x]
+- Step 11 Git Completion: COMPLETE (2026-08-13) - commit-guard PASS, pushed to feature/conversational-season-drafting
 
 ### Sub-Agents
-- TDD Agent (Phase 2 implementation): COMPLETE - context-bundle.ts + test, 5 fixture files, SKILL.md; 6 tests (31/31 total)
-- Verifier Agent (Step 7): COMPLETE - PASS (31/31 tests, typecheck clean)
-- Code Reviewer Agent (Step 8): COMPLETE - APPROVED (1 recommended, non-blocking) -> fix applied by orchestrator, re-verified green
-- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md updated; committed separately (7d54ff2)
+- TDD Agent (Phase 3 implementation): COMPLETE - 9 new tests (40/40 total); first React/Vite frontend surface in repo
+- Verifier Agent (Step 7): COMPLETE - PASS (40/40 tests, typecheck clean, vite build clean)
+- Code Reviewer Agent (Step 8): COMPLETE - APPROVED WITH RECOMMENDATIONS (0 blocking)
+- Documentation Agent (Step 9): COMPLETE - techContext.md, systemPatterns.md updated + inline comments; committed separately (fbf6d7d)
 
 ### Guard & Recovery Log
-(none - commit-guard PASSed on first run after the phase commit: prod=1 test=1)
+(none yet for Phase 3 - commit-guard run pending as part of Step 11)
 
 ### Resumption Notes
 **Can Resume**: NO
 **Resume From**: N/A
-**Notes**: Phase 2 complete and committed (2476067). Next /bmb:build invocation should pick up Phase 3 (Season Chat + Draft Preview UI).
+**Notes**: Phase 3 complete. Next /bmb:build invocation should pick up Phase 4 (Signoff flow: approve/commit to canon, reject-with-notes back into resumed session). Deferred items to carry forward: composer is present but not wired to POST (deliberate — belongs to AC-ERROR-1/AC-ASYNC-4); react-router 6.x dependency security advisories tracked for a future major-version bump; code-review recommends extracting console/src/shared/ types module and a useSeasonEvents(seasonId) hook before Phase 4/5 add more frontend surface.

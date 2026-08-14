@@ -51,3 +51,33 @@ describe("GET /api/seasons/:seasonId/events — seasonId validation", () => {
     res.body?.cancel();
   });
 });
+
+describe("GET /api/seasons/:seasonId/draft — seasonId validation and no-draft state", () => {
+  let originalNodeEnv: string | undefined;
+
+  beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "test";
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it("rejects a path-traversal-shaped seasonId with a 4xx, reusing the same validation gate as /events", async () => {
+    const { app } = createApp();
+
+    const res = await app.request("/api/seasons/..%2F..%2Fetc%2Fpasswd/draft");
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it("returns 204 for a valid season with no draft file written yet (AC-ENTRY-1's empty state)", async () => {
+    const { app } = createApp();
+
+    const res = await app.request("/api/seasons/season_1-Test/draft");
+
+    expect(res.status).toBe(204);
+  });
+});

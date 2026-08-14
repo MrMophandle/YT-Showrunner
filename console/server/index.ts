@@ -14,6 +14,7 @@
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { DraftWatcher } from "./draft-watcher.js";
 import { FileSessionStore, isValidSeasonId, SeasonSessionManager } from "./season-session.js";
 import { formatSseMessage, SeasonEventBus } from "./sse.js";
 
@@ -25,6 +26,20 @@ export function createApp() {
   const sessionStore = new FileSessionStore(CANON_ROOT);
   const sessionManager = new SeasonSessionManager(sessionStore);
   const eventBus = new SeasonEventBus();
+  // One DraftWatcher per season, created lazily on first request — mirrors
+  // SeasonEventBus's per-seasonId channel map. seasonId is validated at every
+  // call site below before it ever reaches this map or DraftWatcher's own
+  // (also-validating) constructor.
+  const draftWatchers = new Map<string, DraftWatcher>();
+
+  const getDraftWatcher = (seasonId: string): DraftWatcher => {
+    let watcher = draftWatchers.get(seasonId);
+    if (!watcher) {
+      watcher = new DraftWatcher({ canonRoot: CANON_ROOT, seasonId });
+      draftWatchers.set(seasonId, watcher);
+    }
+    return watcher;
+  };
 
   const app = new Hono();
 
@@ -79,7 +94,30 @@ export function createApp() {
     );
   });
 
-  return { app, sessionManager, eventBus };
+  /**
+   * Read-only draft snapshot for the Draft Preview panel (AC-HAPPY-3,
+   * AC-ASYNC-3). Backed by DraftWatcher, which never returns a torn/partial
+   * read — a poll here is always either the last-good complete draft or
+   * "none yet". 204 (not 404) for "no draft yet" — a season with no draft is
+   * a valid, expected state (AC-ENTRY-1), not a missing resource.
+   */
+  app.get("/api/seasons/:seasonId/draft", async (c) => {
+    const seasonId = c.req.param("seasonId");
+    if (!isValidSeasonId(seasonId)) {
+      return c.json({ error: "Invalid seasonId" }, 400);
+    }
+
+    const watcher = getDraftWatcher(seasonId);
+    await watcher.pollOnce();
+    const draft = watcher.getLastGood();
+
+    if (!draft) {
+      return c.body(null, 204);
+    }
+    return c.json(draft);
+  });
+
+  return { app, sessionManager, eventBus, draftWatchers };
 }
 
 /* c8 ignore start -- process entry point, exercised via manual `npm run dev:server`, not unit tests */

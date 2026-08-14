@@ -48,4 +48,40 @@ describe("SeasonEventBus", () => {
     const message = formatSseMessage({ seq: 0, payload: { type: "text", text: "hi" } });
     expect(message).toBe('data: {"seq":0,"payload":{"type":"text","text":"hi"}}\n\n');
   });
+
+  it("gives a reconnecting subscriber the events it missed plus subsequent live events, with no duplication (AC-ASYNC-1)", () => {
+    const bus = new SeasonEventBus();
+    bus.startTurn("season-4");
+
+    const firstReceived: unknown[] = [];
+    const first = bus.subscribe("season-4", (event) => firstReceived.push(event.payload));
+
+    bus.publish("season-4", { type: "text", text: "part 1" });
+    bus.publish("season-4", { type: "text", text: "part 2" });
+
+    // Simulate a browser disconnect mid-turn (tab closed / network drop).
+    first.unsubscribe();
+
+    // The headless process's lifecycle is NOT tied to the subscriber — it keeps
+    // publishing regardless of whether anyone is listening (AC-ASYNC-1).
+    bus.publish("season-4", { type: "text", text: "part 3" });
+
+    // Reconnect: the browser resubscribes with the last seq it actually saw (1, from "part 2").
+    const lastSeenSeq = 1;
+    const reconnectReceived: unknown[] = [];
+    const { missed, unsubscribe } = bus.subscribe(
+      "season-4",
+      (event) => reconnectReceived.push(event.payload),
+      lastSeenSeq,
+    );
+
+    bus.publish("season-4", { type: "text", text: "part 4" });
+
+    const allReceivedAfterReconnect = [...missed.map((e) => e.payload), ...reconnectReceived];
+    expect(allReceivedAfterReconnect).toEqual([
+      { type: "text", text: "part 3" },
+      { type: "text", text: "part 4" },
+    ]);
+    unsubscribe();
+  });
 });
