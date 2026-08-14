@@ -18,6 +18,7 @@ import { commitDraftToCanon } from "./canon-commit.js";
 import { DraftWatcher } from "./draft-watcher.js";
 import { FileSessionStore, isValidSeasonId, SeasonSessionManager, type SpawnFn } from "./season-session.js";
 import { formatSseMessage, SeasonEventBus } from "./sse.js";
+import { readStatuslineSnapshot } from "./statusline-probe.js";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.YTS_CONSOLE_PORT ?? 8787);
@@ -53,6 +54,18 @@ export function createApp(options: CreateAppOptions = {}) {
   const app = new Hono();
 
   app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+  /**
+   * Best-effort plan-usage snapshot for the Diagnostics panel (AC-ERROR-6).
+   * Account-wide, not per-season — no seasonId param, unlike the routes
+   * below. Always 200s with a discriminated `status` field (fresh / stale /
+   * unavailable); the probe itself never throws, so this route has no error
+   * branch of its own to fabricate a value on.
+   */
+  app.get("/api/statusline", async (c) => {
+    const result = await readStatuslineSnapshot();
+    return c.json(result, 200);
+  });
 
   /**
    * SSE endpoint (server -> browser only, per the design doc). A subscriber

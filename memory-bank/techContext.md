@@ -65,13 +65,25 @@
 1. **Ledger read-modify-write race**: `canon-commit.ts` reads existing `continuity-ledger.md` content then atomically writes the concatenation. Two concurrent approvals across different seasons could race; one's ledger append could be lost. Low-likelihood for a single-user local tool; flagged for awareness, not fixed in this phase.
 2. **Duplicated draft-polling logic**: `SignoffPanel.tsx`'s draft-polling `useEffect` mirrors `DraftPreview.tsx`'s near-identically. A shared `useSeasonDraft(seasonId)` hook was recommended (also flagged after Phase 3) but remains unextracted — now duplicated in two places.
 
-**Phase 5+: Diagnostics & Message Send** (deferred) — context-usage math, plan-usage probe, composer integration.
+**Phase 5 Scope (Diagnostics & Real Usage Metrics):**
+- `console/server/statusline-probe.ts` — Best-effort reader of a statusLine rate-limit snapshot for the Diagnostics panel's plan-usage figure (AC-ERROR-6, AC-ERROR-2). Reads from a well-known file path (`DEFAULT_STATUSLINE_SNAPSHOT_PATH: <os.tmpdir()>/yts-statusline-snapshot.json`), validates shape defensively, never fabricates a value — returns a discriminated fresh/stale/unavailable result. Uses the same dependency-injection pattern for testability (snapshotPath, readFileFn, now, freshnessWindowMs all injectable). Does not write snapshots itself; reads one that some future interactive session may write. Includes structural validator `isStatuslineSnapshot()` that ensures `asOf` is parseable and optional `fiveHourPercentUsed`/`sevenDayPercentUsed`/`resetsAt` fields are correctly typed.
+- `console/src/components/DiagnosticsPanel.tsx` — Context usage (real, from stream-json `usage` blocks) and plan usage (statusLine probe snapshot). Exports `computeContextUsage()` pure function (sums the four usage fields on the most recent turn carrying a usage block), `CONTEXT_WINDOW_TOKENS = 200_000` (NEW convention; per-model windows not yet needed), `CONTEXT_WARNING_THRESHOLD_RATIO = 0.8` (fires when usage crosses 80% of context window, per AC-ERROR-5). Polls `/api/statusline` route at a configurable interval (default 5000ms) using the same polling pattern as DraftPreview.tsx. Renders fresh/stale/unavailable plan-usage states exactly as the probe reports (explicit unavailable + reason, never fabricated), independent of context-usage rendering.
+- `console/server/index.ts` (modified) — New route: `GET /api/statusline` (account-wide, no seasonId param, calls `readStatuslineSnapshot()` with defaults, always 200s with a discriminated `status` field).
+- `console/src/pages/SeasonChat.tsx` (modified) — Replaced Diagnostics placeholder with real `<DiagnosticsPanel turns={turns} />`. Added transcript-side context-limit warning banner (AC-ERROR-5) that reuses `computeContextUsage()` against the same `turns` already in scope, avoiding re-derivation.
+
+**Phase 5+: Message Send** (deferred) — composer integration, turn spawning, retry/crash handling (AC-ERROR-1, AC-ASYNC-4).
+
+**Known non-blocking items from Phase 5 code review:**
+1. **Statusline snapshot path env-var not wired**: `statusline-probe.ts`'s module doc mentions `YTS_STATUSLINE_SNAPSHOT_PATH` as the configurable-path convention (mirroring `YTS_CANON_ROOT` / `YTS_CONSOLE_PORT`), but `readStatuslineSnapshot()` only honors an injected `options.snapshotPath` (used by tests). The `/api/statusline` route in index.ts calls it with no options, so production always uses `DEFAULT_STATUSLINE_SNAPSHOT_PATH`. A natural follow-up would wire `process.env.YTS_STATUSLINE_SNAPSHOT_PATH ?? DEFAULT_STATUSLINE_SNAPSHOT_PATH` into the route.
+2. **Ledger read-modify-write race** (from Phase 4): `canon-commit.ts` reads existing `continuity-ledger.md` content then atomically writes the concatenation. Two concurrent approvals across different seasons could race; one's ledger append could be lost. Low-likelihood for a single-user local tool; flagged for awareness.
+3. **Duplicated draft-polling logic** (from Phase 4): `SignoffPanel.tsx`'s draft-polling `useEffect` mirrors `DraftPreview.tsx`'s near-identically. A shared `useSeasonDraft(seasonId)` hook was recommended but remains unextracted.
 
 ### API Endpoints
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | `GET` | `/api/health` | Liveness check; returns `{ status: "ok" }` |
+| `GET` | `/api/statusline` | Best-effort plan-usage snapshot for the Diagnostics panel (Phase 5, AC-ERROR-6). Account-wide, not per-season. Always 200s with a discriminated `status` field: fresh / stale / unavailable (with reason). Never throws; read failures degrade gracefully to unavailable state. |
 | `GET` | `/api/seasons/:seasonId/events` | Server-Sent Events stream for a season's conversation turns and transcript deltas. Query param `?since=<seq>` for resumption; omit to receive full current-turn buffer. |
 | `GET` | `/api/seasons/:seasonId/draft` | Returns the last successfully parsed draft file (`season.draft.json`). Returns 200 with SeasonDraft JSON, 204 if no draft exists yet, or 400 if seasonId is invalid. Torn/partial reads are never surfaced; the endpoint keeps serving the last-good draft (AC-ASYNC-3). |
 | `POST` | `/api/seasons/:seasonId/approve` | Approves the current draft and commits it to canon (Phase 4, AC-HAPPY-4). Requires >=1 episode in the draft; returns 200 `{ seasonFile, ledgerFile }` on success, 400 if no draft or empty draft, 502 if the commit operation fails. No regeneration or model call. |
@@ -125,18 +137,20 @@ Run all commands from the `console/` directory.
 - `console/server/stream-parser.test.ts` — Stream-json parsing, turn grouping
 - `console/server/sse.test.ts` — SeasonEventBus pub/sub and replay buffer behavior
 - `console/server/season-session.test.ts` — Session store (in-memory, file-based), spawn lifecycle, --resume behavior
-- `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point (updated Phase 4: added tests for `/approve` and `/reject`)
+- `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point (updated Phase 4: added tests for `/approve` and `/reject`; updated Phase 5: added tests for `/statusline` route)
 - `console/server/context-bundle.test.ts` — Context bundle assembly from canon files, graceful omission of missing files, first-turn-only bundle inclusion
 - `console/server/draft-watcher.test.ts` — Draft file polling, torn-read handling, last-good graceful degradation (AC-ASYNC-3), structural validation (Phase 3)
 - `console/server/canon-commit.test.ts` — Canon file commit (atomic temp+rename for both season file and ledger), test-injectable filesystem operations, seasonId validation, ledger formatting (Phase 4)
+- `console/server/statusline-probe.test.ts` — Statusline snapshot read, freshness validation, graceful degradation on missing/stale/unreadable snapshots (Phase 5)
 - `console/src/components/TranscriptTurn.test.tsx` — Turn rendering (text, tool calls, collapsible thinking) (Phase 3)
 - `console/src/components/DraftPreview.test.tsx` — Draft polling, empty state, last-good-on-error behavior (Phase 3)
 - `console/src/components/SignoffPanel.test.tsx` — Approve/reject UI, draft polling state, approval/rejection flow, error handling for 502 crashes (Phase 4)
+- `console/src/components/DiagnosticsPanel.test.tsx` — Context-usage math, real rendering, plan-usage polling, warning threshold, unavailable-state rendering (Phase 5)
 
 ### Test Count & Coverage
-- 52 tests total across 10 files (was 41 across 8 files in Phase 3)
-- Phase 4 added: 4 tests in canon-commit.test.ts (commit flow, atomic write, ledger formatting), 5 tests in index.test.ts for new routes (`/approve` route, `/reject` route, error cases), 2 tests in SignoffPanel.test.tsx (approve/reject button states and submissions), plus 0 in existing files (total +11 tests)
-- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection, draft-file torn-read handling, canon commit atomicity, React component rendering and state updates, approval/rejection workflows
+- 63 tests total across 12 files (was 52 across 10 files in Phase 4; was 41 across 8 files in Phase 3)
+- Phase 5 added: 5 tests in statusline-probe.test.ts (fresh/stale/unavailable snapshot reads, JSON parse failures, invalid shape), 6 tests in DiagnosticsPanel.test.tsx (context-usage math, real rendering, plan-usage unavailable-never-blocks-context, warning threshold crossed/not-crossed), 1 test added to index.test.ts for the new `/statusline` route (total +12 tests, but some pre-existing tests were consolidations from refactoring, net +11 new test cases)
+- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection, draft-file torn-read handling, canon commit atomicity, React component rendering and state updates, approval/rejection workflows, context-usage computation from usage blocks, statusline snapshot read/validation/freshness, context-warning threshold detection
 
 ### Running Tests
 ```bash

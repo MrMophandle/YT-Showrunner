@@ -2,9 +2,9 @@
  * Season Chat view — route `/seasons/:seasonId/chat`. Composer + live
  * transcript + three side panels (Draft Preview, Signoff, Diagnostics).
  *
- * Diagnostics remains an intentionally minimal placeholder in this phase
- * (its real logic — context-usage math — belongs to Phase 5, still
- * unbuilt). Signoff is now the real SignoffPanel (Phase 4:
+ * Diagnostics is now the real DiagnosticsPanel (Phase 5: real context-usage
+ * math from stream-json `usage` blocks + best-effort plan usage via the
+ * statusLine probe). Signoff is the real SignoffPanel (Phase 4:
  * approve/reject-with-notes).
  *
  * Message-send wiring (spawning a turn from the composer) is deliberately
@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { groupIntoTurns, type NormalizedTurn } from "../../server/stream-parser.js";
+import { computeContextUsage, CONTEXT_WARNING_THRESHOLD_RATIO, CONTEXT_WINDOW_TOKENS, DiagnosticsPanel } from "../components/DiagnosticsPanel.js";
 import { DraftPreview } from "../components/DraftPreview.js";
 import { SignoffPanel } from "../components/SignoffPanel.js";
 import { TranscriptTurn } from "../components/TranscriptTurn.js";
@@ -56,12 +57,29 @@ export function SeasonChat() {
   // work when other state (like composer value) changes without affecting rawEvents.
   const turns: NormalizedTurn[] = useMemo(() => groupIntoTurns(rawEvents).turns, [rawEvents]);
 
+  // AC-ERROR-5: the transcript-side half of the context-window warning. The
+  // Diagnostics panel's own warning state (rendered inside DiagnosticsPanel)
+  // is the primary requirement; this banner reuses the same pure
+  // computeContextUsage function against the same `turns` already in scope
+  // here, rather than re-deriving usage independently.
+  const contextUsage = useMemo(() => computeContextUsage(turns), [turns]);
+  // Warning fires once usage crosses 80% of the 200k-token context window (160k tokens).
+  // This gives the user a clear margin to wrap up before hitting the hard wall.
+  const nearingContextLimit =
+    contextUsage !== null && contextUsage.totalTokens / CONTEXT_WINDOW_TOKENS >= CONTEXT_WARNING_THRESHOLD_RATIO;
+
   if (!seasonId) {
     return <p role="alert">No season selected.</p>;
   }
 
   return (
     <div className="season-chat">
+      {nearingContextLimit && (
+        <p role="alert" className="season-chat__context-warning" data-testid="transcript-context-warning">
+          This conversation is nearing its context limit — the current turn will still complete normally.
+        </p>
+      )}
+
       <section className="season-chat__transcript" aria-label="Transcript" data-testid="transcript">
         {turns.length === 0 ? (
           <p>No messages yet.</p>
@@ -93,10 +111,7 @@ export function SeasonChat() {
 
         <SignoffPanel seasonId={seasonId} />
 
-        <section aria-label="Diagnostics" data-testid="diagnostics-panel">
-          <h3>Diagnostics</h3>
-          <p>Diagnostics are not available yet.</p>
-        </section>
+        <DiagnosticsPanel turns={turns} />
       </aside>
     </div>
   );

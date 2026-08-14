@@ -233,9 +233,14 @@ On turn boundary:
 - `console/server/season-session.ts` — `isValidSeasonId()` validation (reused for path-traversal defense in depth)
 - `.claude/skills/season-drafting/SKILL.md` — documents the conversational use of the context bundle
 
-### 7. Last-Good-State Graceful Degradation Pattern (Defensive Read)
+### 7. Graceful Degradation Over Fabrication Pattern
 
-**Problem**: A file is being written atomically (via temp + rename) by an external process, and a reader may attempt to read during the brief window between temp-file write and rename. A torn or partial read should never surface as a new state to the UI — the reader must keep serving the last successfully parsed state instead.
+**Problem**: When reading external state (files, snapshots, API data) that may be unavailable, stale, or malformed, the system must never fabricate or guess a value. Instead, it should degrade gracefully by explicitly reporting an unavailable/stale/fallback state, allowing the caller to render an honest error message to the user.
+
+**Two Implementation Forms**:
+
+#### Form A: Last-Good-State (Defensive Read for Atomic Writes)
+A file is being written atomically (via temp + rename) by an external process, and a reader may attempt to read during the brief window between temp-file write and rename. A torn or partial read should never surface as a new state to the UI — the reader must keep serving the last successfully parsed state instead.
 
 **Implementation** (in `draft-watcher.ts`, `pollOnce()`):
 ```
@@ -253,18 +258,45 @@ On turn boundary:
 - Last-good is preserved in memory across polls; if the file disappears, the panel still shows the previous draft
 - Distinguishes transient read failures (retry silently) from real errors (throw, surface to caller)
 
-**Trade-offs**:
-- Draft updates may lag by up to one poll interval if a read fails (typically 500ms–1s)
-- Caller cannot distinguish "still reading the old draft" from "no update since last poll"
-- Requires structural validation (not just JSON.parse) to catch schema mismatches
-
-**Reuse Plan**:
-- This pattern will be used by all file-read surfaces that must be resilient to concurrent atomic writes (session pointers, draft files, future canon-state caches)
-- Establishes a convention: "on read failure, keep serving what you already have"
-
 **Key Files**:
 - `console/server/draft-watcher.ts` — `DraftWatcher.pollOnce()`, `isSeasonDraft()` structural validator
 - `console/src/components/DraftPreview.tsx` — mirrors this pattern on the client side (ignores 204 responses, keeps last state)
+
+#### Form B: Explicit Unavailable State (Best-Effort Snapshot Read)
+A best-effort snapshot (e.g., a statusLine rate-limit file written by an interactive session, with no guarantee it exists or is current) should never fabricate a value: missing, stale, or malformed reads are reported as explicit unavailable/stale states rather than guessed zeroes or blanks.
+
+**Implementation** (in `statusline-probe.ts`, `readStatuslineSnapshot()`):
+```
+1. Attempt to read snapshot file
+2. If ENOENT: return { status: "unavailable", reason: "no_snapshot" }
+3. If read fails (permissions, I/O): return { status: "unavailable", reason: "unreadable" }
+4. If JSON.parse fails: return { status: "unavailable", reason: "unreadable" }
+5. If structural validation fails: return { status: "unavailable", reason: "unreadable" }
+6. If asOf timestamp is invalid (not parseable): return { status: "unavailable", reason: "unreadable" }
+7. If parse succeeds:
+   - Compare asOf age vs STATUSLINE_FRESHNESS_WINDOW_MS
+   - Return { status: "fresh" | "stale", ...snapshot }
+   - Never fabricate optional fields (fiveHourPercentUsed, etc.)
+```
+
+**Why This Matters** (AC-ERROR-6):
+- No snapshot file exists yet (the interactive statusLine hook is not wired), or the snapshot is stale (interactive session died hours ago)
+- Caller (Diagnostics panel) explicitly renders unavailable/stale states with a reason, never a placeholder 0% or blank
+- Stale snapshots show their as-of timestamp so the user understands the data is old
+- Plan-usage unavailability is independent of context-usage rendering; one never blocks the other
+
+**Key Files**:
+- `console/server/statusline-probe.ts` — `readStatuslineSnapshot()`, `isStatuslineSnapshot()` structural validator
+- `console/src/components/DiagnosticsPanel.tsx` — `PlanUsageDisplay()` renders all three states (fresh / stale / unavailable) with explicit messaging
+
+**Tradeoffs**:
+- For Form A: Draft updates may lag by up to one poll interval if a read fails (typically 500ms–1s). Caller cannot distinguish "still reading the old draft" from "no update since last poll".
+- For Form B: Caller must always handle unavailable/stale results; no automatic fallback. This is intentional — the pattern forbids fabrication.
+
+**Reuse Plan**:
+- This pattern will be used by all file-read surfaces: session pointers, draft files, future canon-state caches (Form A)
+- Best-effort external-state reads: statusLine snapshots, plan-usage APIs, future analytics endpoints (Form B)
+- Establishes a convention: "never guess; always say what you actually know"
 
 ## Conventions
 
