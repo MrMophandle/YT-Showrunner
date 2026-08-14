@@ -1,10 +1,11 @@
 ---
 version: next
-status: planned
+status: completed
 priority: high
 complexity: 4
 linked_tasks: [conversational-season-drafting]
 created: 2026-08-12
+completed: 2026-08-13
 ---
 
 # Conversational Season Drafting
