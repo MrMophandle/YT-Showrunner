@@ -285,7 +285,7 @@ pending/error states.
 - [ ] `console/src/components/SignoffPanel.test.tsx` — extend for the `202` state
 
 ### Phases
-- [ ] Phase 1: Turn runner + prompt composition (server core)
+- [x] Phase 1: Turn runner + prompt composition (server core)
 - [ ] Phase 2: Routes — `POST /message` and `/reject` rewire
 - [ ] Phase 3: Composer wiring (client)
 
@@ -319,10 +319,14 @@ validation **PASS**.
 
 ## Execution State
 
-**Build Status**: IDLE
+**Build Status**: RUNNING
 **Current Phase**: BUILD
-**Last Completed**: Planning (brainstorm)
-**Can Resume**: NO
+**Phase Being Built**: Phase 1: Turn runner + prompt composition (server core)
+**Phase Number**: 1 of 3
+**Is Multi-Phase**: YES
+**Last Completed**: Phase 1 build (committed on feature/season-chat-conversation-loop)
+**Can Resume**: YES
+**Resume From**: Phase 2 (Step 1 — read task context)
 
 ### Active Sub-Agents
 (none)
@@ -336,3 +340,20 @@ validation **PASS**.
 - Artifacts authored: roadmap feature, task file, creative design doc
 - Quality gates: taxonomy lint PASS · concrete-spec validation PASS · glossary skipped (not built) · test strategy PASS
 - BRAINSTORM CRITIQUE: anthropic — configured:anthropic (verdict REVISE; 5 findings, 5 applied, 0 noted)
+
+#### Phase 1 build (this run)
+- Step 0.5 Git Setup: COMPLETE (in-repo checkout, no worktree hop needed)
+- Step 0.6 Phase Gate: COMPLETE (roadmap populated, creative doc complete)
+- Step 3 TDD Agent: COMPLETE — `SeasonTurnRunner` (turn-runner.ts, 10 tests) + `buildTurnPrompt()` skill-prefix extension (context-bundle.ts, 2 tests). RED confirmed (11 failing) → GREEN (75/75 passing incl. 63 baseline)
+- Step 7 Integration Verification (bmb:build-verifier-agent): COMPLETE — PASS: tests 75/75, typecheck clean, build:client clean, no lint script defined
+- Step 8 Code Review: COMPLETE — APPROVED, 0 blocking issues, security PASS (no new deps; react-router/vitest deferrals unchanged), 1 recommended note (skill-prefix single-space join vs. multi-line bundle — flagged for Phase 2/3 confirmation against SKILL.md's actual invocation parsing)
+- Step 9 Documentation: COMPLETE — techContext.md (new Phase 1 Scope section + known non-blocking item), systemPatterns.md (new Pattern #8: Per-Season Single-Flight Queue with Crash-Discard Policy), task file Phase 1 checkbox marked `[x]`
+- Step 10 Memory Bank update: COMPLETE (this edit)
+
+### Guard & Recovery Log
+(empty — commit guard passed on first attempt)
+
+### Resumption Notes
+**Can Resume**: YES
+**Resume From**: Phase 2 (Routes — `POST /message` and `/reject` rewire) via `/bmb:build season-chat-conversation-loop`
+**Notes**: Phase 1 committed and pushed to `feature/season-chat-conversation-loop`. `SeasonTurnRunner.submit()` is ready for Phase 2's routes to call; not yet wired into `index.ts`. Carry forward the code-review note on the skill-prefix single-space join.

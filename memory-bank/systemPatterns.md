@@ -298,6 +298,37 @@ A best-effort snapshot (e.g., a statusLine rate-limit file written by an interac
 - Best-effort external-state reads: statusLine snapshots, plan-usage APIs, future analytics endpoints (Form B)
 - Establishes a convention: "never guess; always say what you actually know"
 
+### 8. Per-Season Single-Flight Queue with Crash-Discard Policy
+
+**Problem**: Multiple user messages may arrive while a turn is already running for a season. Spawning concurrent headless processes for the same season risks race conditions on the session pointer, the SSE replay buffer, and the skill's single-writer guarantee on `season.draft.json`. A naive queue approach that drains into an unknown session state on crash would silently lose user input or cause the skill to write corrupted state.
+
+**Implementation** (in `turn-runner.ts`, `SeasonTurnRunner`):
+```
+Per season:
+- inFlight: boolean        ← True while a headless process is running
+- queue: string[]          ← FIFO of raw user messages waiting
+
+On submit():
+  1. If inFlight: queue the message, return {status:"queued", queuePosition}
+  2. Else: mark inFlight=true, kick off runTurn() async (don't await), return {status:"started"}
+
+On runTurn() completion:
+  1. If crashed: discard all queued messages, publish {type:"yts_error", discardedMessages:[...]}
+  2. Else: shift next message from queue, run it (recursive), or mark inFlight=false
+```
+
+**Why This Matters**:
+- Concurrent-message safety: seasonId validation + per-season state isolation + synchronous inFlight flip (before any awaits) ensure exactly one spawn per season at a time
+- Input preservation: crashed turns publish discarded messages to the event bus (never silently dropped); the UI restores them to the composer
+- Session fidelity: queued turns drain strictly FIFO into a known-good session, never into a failed process
+
+**Tradeoff**:
+- In-memory per-instance only; two concurrent server processes would each spawn. Acceptable for single-user localhost tool; a multi-server deployment would need a distributed lock (out of scope).
+
+**Key Files**:
+- `console/server/turn-runner.ts` — `SeasonTurnRunner` class, `states: Map<seasonId, SeasonQueueState>`
+- `console/server/index.ts` — Routes (`/message`, `/reject`) delegate to runner.submit()
+
 ## Conventions
 
 ### File Organization

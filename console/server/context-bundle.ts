@@ -143,6 +143,14 @@ export function renderContextBundle(bundle: ContextBundle): string {
   return sections.join("\n\n");
 }
 
+/**
+ * Slash-command prefix that invokes the season-drafting skill inside the
+ * headless `claude -p` process. Prepended to every first-turn prompt (never a
+ * resumed turn) so the spawned process loads the skill before seeing any
+ * canon context or the user's message.
+ */
+export const SEASON_DRAFTING_SKILL_COMMAND = "/season-drafting";
+
 export interface BuildTurnPromptOptions {
   /** True when a session id has already been recorded for this season (a resumed turn). */
   hasExistingSession: boolean;
@@ -155,11 +163,17 @@ export interface BuildTurnPromptOptions {
  * Decides the actual prompt string sent to `runTurn`/`SeasonSessionManager.sendMessage`:
  * the context bundle precedes the user's message on the first turn only; every
  * later (resumed) turn sends just the user's message, since the bundle already
- * lives in the resumed session's history (AC-HAPPY-2).
+ * lives in the resumed session's history (AC-HAPPY-2). First turns are also
+ * prefixed with `SEASON_DRAFTING_SKILL_COMMAND` so the headless process loads
+ * the season-drafting skill before anything else — including when the bundle
+ * itself is empty (no canon files yet), in which case the prefix still leads
+ * straight into the user's message with no fabricated bundle section.
  */
 export function buildTurnPrompt(options: BuildTurnPromptOptions): string {
   if (options.hasExistingSession) {
     return options.userMessage;
   }
-  return `${options.contextBundleText}\n\n---\n\n${options.userMessage}`;
+  return options.contextBundleText.trim().length === 0
+    ? `${SEASON_DRAFTING_SKILL_COMMAND} ${options.userMessage}`
+    : `${SEASON_DRAFTING_SKILL_COMMAND} ${options.contextBundleText}\n\n---\n\n${options.userMessage}`;
 }
