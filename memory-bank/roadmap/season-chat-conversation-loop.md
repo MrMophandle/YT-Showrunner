@@ -1,11 +1,16 @@
 ---
 version: next
-status: planned
+status: completed
 priority: high
 complexity: 3
 linked_tasks: [season-chat-conversation-loop]
 created: 2026-08-17
+completed: 2026-08-18
 ---
+
+> **Status: completed** (2026-08-18) — the sole linked task
+> `season-chat-conversation-loop` is COMPLETE.
+> Archive: `memory-bank/archive/season-chat-conversation-loop-archive.md`
 
 # Season Chat Conversation Loop
 
