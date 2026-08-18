@@ -44,7 +44,8 @@ context bundle and no skill.
 - [✓] User's typed message appears in the transcript, followed by the model's reply
       streaming in token-group by token-group
 - [✓] `<canonRoot>/seasons/<seasonId>/.yts-session.json` re-persisted every turn
-- [✓] `season.draft.json` written by the skill and rendered by Draft Preview
+- [ ] `season.draft.json` written by the skill and rendered by Draft Preview —
+      **UNVERIFIED**, see AC-HAPPY-4 below
 - [✓] Reply events appear as the process emits them (no wait for turn completion)
 
 ### Acceptance Criteria (12 total — 11 automated, 1 manual by design)
@@ -53,8 +54,11 @@ context bundle and no skill.
       absent source files omitted entirely rather than rendered as empty headings
 - [✓] AC-HAPPY-2 — later turns `--resume` with the bare message (no bundle, no prefix)
 - [✓] AC-HAPPY-3 — server publishes a synthetic user event after `startTurn()`
-- [✓] AC-HAPPY-4 — skill maintains `season.draft.json` (**manually verified per runbook**;
-      deliberately not claimed from the automated suite — see Design Decisions)
+- [ ] AC-HAPPY-4 — skill maintains `season.draft.json` — **UNVERIFIED AT ARCHIVE TIME.**
+      This AC was correctly carved out as manual-only (the suite cannot prove it — see
+      Design Decisions), but the required evidence was never recorded. See
+      "AC-HAPPY-4 evidence gap" below. **This is the one unproven link in the chain**:
+      it is the AC that establishes the app does the thing it exists to do.
 - [✓] AC-ASYNC-1 — messages queue FIFO; exactly one process per season per server instance
 - [✓] AC-ASYNC-2 — queued messages visible while pending, and rendered exactly once
 - [✓] AC-ERROR-1 — crashed turn returns `502` with `{error, crashed, exitCode}`, never `200`
@@ -147,7 +151,34 @@ real defects that would otherwise have shipped silently.
 - All tests passing: ✅ 89/89
 - `npm run typecheck`: clean · `npm run build:client`: clean · no lint script defined
 - RED→GREEN confirmed each phase (Phase 1 RED at 11 failing → GREEN 75/75)
-- AC-HAPPY-4 verified manually per its runbook — not claimed from the green suite
+- AC-HAPPY-4 **not** verified — see the evidence gap below. It was correctly excluded
+  from the automated suite, but the substitute manual evidence was never captured.
+
+### AC-HAPPY-4 evidence gap (found during archive, recorded honestly)
+
+The task spec was explicit (`tasks/season-chat-conversation-loop.md:130`): the manual
+runbook must be *"run once at the end of Phase 3 and recorded in Execution State with the
+observed output."* At archive time that evidence does not exist:
+
+| Check | Result |
+|---|---|
+| Phase 3 Execution State runbook entry + observed output | **Absent** (Steps 0.5/0.6/3/7/8/9/10 recorded; no runbook step) |
+| `season.draft.json` anywhere in the repo | **None found** |
+| `.yts-session.json` anywhere in the repo | **None found** |
+| Are those artifacts gitignored? | **No** — and the tree is clean, so they are not merely untracked |
+| Runbook target path `console/fixtures/canon/seasons/2/` | **Does not exist** — fixtures contain only `seasons/season-1/` |
+| `seasonId` consistency | Runbook says `2`; fixtures and `App.tsx:10`'s redirect both say `season-1` |
+
+It may have been run against a different canon root and cleaned up, but no trace remains.
+The reflection document states AC-HAPPY-4 was "verified manually per task spec"; that claim
+is **unsupported by any recorded evidence**, and the first version of this archive repeated
+it. Corrected here rather than left standing.
+
+**Consequence**: the automated suite proves the composed prompt carries the
+`/season-drafting` invocation (AC-HAPPY-1), and 5 planning-time probe runs proved the CLI
+loads a skill from that prefix. What remains unproven is the end-to-end link — that this
+server, spawning this process, causes the skill to write a draft this app then renders.
+Closing it is follow-up #1 and the first thing the pending UAT walk should target.
 
 ## Files Changed
 
@@ -217,18 +248,26 @@ Reference: `memory-bank/reflection/season-chat-conversation-loop-reflection.md`
 
 ## Follow-up
 
-1. **Immediate-crash data-loss edge case** (from Phase 3 code review, non-blocking): a
+1. **Close the AC-HAPPY-4 evidence gap — highest priority.** Run the runbook and record
+   the observed output. Settle the `seasonId` inconsistency first (`season-1` vs `2`): it
+   may be a stale runbook, or it may mean `/approve`'s write path has never been exercised.
+   This is the single unproven link between "the tests pass" and "the app works," and it is
+   the natural first target of the pending UAT walk.
+2. **Immediate-crash data-loss edge case** (from Phase 3 code review, non-blocking): a
    crash of a *just-submitted* message does not restore that message to the composer —
    only the remaining queue is restored via `discardedMessages`. Narrow but real; the
    reflection explicitly asked that this be tracked rather than allowed to fade at archive.
-2. **`.agent-logs/claude/by-task/<slug>/` indexing is still unpopulated** — this was the
-   second consecutive reflection forced to fall back to date-directory scanning. Should not
-   be deferred a third time.
 3. **UAT was never run.** This task closed the loop that makes the app interactive for the
    first time, so a real walk (compose → send → see reply stream → draft appears) is now
-   possible for the first time in the project's history.
-4. **`productBrief.md` persona/NFR placeholders** remain outstanding from the predecessor
-   task — correctly out of scope here, still owed to a future pass.
-5. **Plan-critique independence**: the seam runs `configured:anthropic` (same model family
+   possible for the first time in the project's history. Blocked on one-time setup: no
+   journey doc, no `uat-config.md`, no `ux-patterns.md` exist yet.
+4. **`.agent-logs/claude/by-task/<slug>/` indexing is still unpopulated** — this was the
+   second consecutive reflection forced to fall back to date-directory scanning. Should not
+   be deferred a third time.
+5. **`productBrief.md` is stale, not just incomplete** — it still reads *"Greenfield —
+   repository currently contains only a LICENSE file; no source tree established yet"* and
+   `Stage: Concept`, alongside placeholder personas and NFRs. Every Level 2-4 plan reads
+   this file as product context, so the staleness actively misinforms planning.
+6. **Plan-critique independence**: the seam runs `configured:anthropic` (same model family
    critiquing its own plan). It has performed well twice; worth revisiting before assuming
    the quality bar holds on a harder task.

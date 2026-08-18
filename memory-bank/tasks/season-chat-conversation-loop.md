@@ -400,6 +400,16 @@ validation **PASS**.
 - Step 4E Routing: COLLAPSED (`pr_target == metadata_branch == main`) — all Core State and
   Work-Specific writes ride the feature branch on a single PR
 - Step 5 Git operations: push + PR (`archive_strategy: push-and-pr`, `main` protected)
+- **AC-HAPPY-4 evidence gap found at archive**: this task file (line ~130) required the
+  manual runbook to be "run once at the end of Phase 3 and recorded in Execution State
+  with the observed output." No such record exists in the Phase 3 notes above, and no
+  `season.draft.json` / `.yts-session.json` exists anywhere in the repo (neither is
+  gitignored; tree is clean). The runbook's target path
+  `console/fixtures/canon/seasons/2/` does not exist — fixtures contain only
+  `seasons/season-1/`, and `App.tsx:10` redirects to `season-1`. The reflection's claim
+  that AC-HAPPY-4 was "verified manually per task spec" is therefore unsupported.
+  AC-HAPPY-4 is recorded as **UNVERIFIED** in the archive doc and is follow-up #1.
+  Note this does NOT affect the 89/89 automated suite or any other AC.
 
 ### Guard & Recovery Log
 (empty — commit guard passed on first attempt, both phases)
