@@ -33,6 +33,7 @@ export function SignoffPanel({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
   const [approveResult, setApproveResult] = useState<ApproveResponse | null>(null);
   const [rejectSubmitted, setRejectSubmitted] = useState(false);
   const [rejectError, setRejectError] = useState<string | null>(null);
+  const [rejectQueued, setRejectQueued] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -80,6 +81,9 @@ export function SignoffPanel({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
     const trimmed = notes.trim();
     if (trimmed.length === 0) return;
     setBusy(true);
+    setRejectSubmitted(false);
+    setRejectError(null);
+    setRejectQueued(false);
     try {
       const res = await fetchFn(`/api/seasons/${encodeURIComponent(seasonId)}/reject`, {
         method: "POST",
@@ -88,13 +92,17 @@ export function SignoffPanel({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
       });
       if (res.status === 200) {
         setRejectSubmitted(true);
-        setRejectError(null);
+        setNotes("");
+      } else if (res.status === 202) {
+        // AC-INTEGRATION-1: notes were queued behind an in-flight turn — neither
+        // success (nothing landed in the transcript yet) nor failure (the turn
+        // didn't crash, it just hasn't run this resume yet).
+        setRejectQueued(true);
         setNotes("");
       } else {
         // AC-ERROR-1: a crashed resumed turn (server returns non-200, e.g. 502) must
         // read as failure here — never the "Notes sent" success message, since nothing
         // will land in the transcript for a turn that never completed.
-        setRejectSubmitted(false);
         setRejectError("The turn failed to complete — check the transcript or try again.");
       }
     } finally {
@@ -125,6 +133,7 @@ export function SignoffPanel({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
         Reject with notes
       </button>
       {rejectSubmitted && <p role="status">Notes sent — see the transcript for the response.</p>}
+      {rejectQueued && <p role="status">Notes queued — will send once the current turn finishes.</p>}
       {rejectError && <p role="alert">{rejectError}</p>}
     </section>
   );

@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { assembleContextBundle, buildTurnPrompt, renderContextBundle } from "./context-bundle.js";
+import {
+  SEASON_DRAFTING_SKILL_COMMAND,
+  assembleContextBundle,
+  buildTurnPrompt,
+  renderContextBundle,
+} from "./context-bundle.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_CANON_ROOT = path.join(__dirname, "..", "fixtures", "canon");
@@ -92,21 +97,46 @@ describe("assembleContextBundle", () => {
 });
 
 describe("buildTurnPrompt", () => {
-  it("includes the context bundle ahead of the user's message on the first turn (no existing session)", () => {
+  it("prefixes the skill command ahead of the context bundle and the user's message on the first turn (no existing session)", () => {
     const prompt = buildTurnPrompt({
       hasExistingSession: false,
       contextBundleText: "BUNDLE-CONTENT-MARKER",
       userMessage: "Let's start breaking season 2.",
     });
 
+    expect(prompt).toContain(SEASON_DRAFTING_SKILL_COMMAND);
     expect(prompt).toContain("BUNDLE-CONTENT-MARKER");
     expect(prompt).toContain("Let's start breaking season 2.");
+    expect(prompt.indexOf(SEASON_DRAFTING_SKILL_COMMAND)).toBeLessThan(
+      prompt.indexOf("BUNDLE-CONTENT-MARKER"),
+    );
     expect(prompt.indexOf("BUNDLE-CONTENT-MARKER")).toBeLessThan(
       prompt.indexOf("Let's start breaking season 2."),
     );
   });
 
-  it("sends only the user's message on a resumed turn (existing session), never re-sending the bundle", () => {
+  it("prefixes the skill command directly ahead of the user's message on the first turn when the bundle is empty, without a fabricated bundle section", () => {
+    const prompt = buildTurnPrompt({
+      hasExistingSession: false,
+      contextBundleText: "",
+      userMessage: "Let's start breaking season 1.",
+    });
+
+    expect(prompt).toBe(`${SEASON_DRAFTING_SKILL_COMMAND} Let's start breaking season 1.`);
+    expect(prompt).not.toContain("---");
+  });
+
+  it("prefixes the skill command directly ahead of the user's message on the first turn when the bundle is whitespace-only", () => {
+    const prompt = buildTurnPrompt({
+      hasExistingSession: false,
+      contextBundleText: "   \n  ",
+      userMessage: "Let's start breaking season 1.",
+    });
+
+    expect(prompt).toBe(`${SEASON_DRAFTING_SKILL_COMMAND} Let's start breaking season 1.`);
+  });
+
+  it("sends only the user's message on a resumed turn (existing session), never re-sending the bundle or the skill prefix", () => {
     const prompt = buildTurnPrompt({
       hasExistingSession: true,
       contextBundleText: "BUNDLE-CONTENT-MARKER",
@@ -114,6 +144,7 @@ describe("buildTurnPrompt", () => {
     });
 
     expect(prompt).not.toContain("BUNDLE-CONTENT-MARKER");
+    expect(prompt).not.toContain(SEASON_DRAFTING_SKILL_COMMAND);
     expect(prompt).toBe("What about the missing captain thread?");
   });
 });

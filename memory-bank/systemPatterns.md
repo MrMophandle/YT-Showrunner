@@ -298,6 +298,51 @@ A best-effort snapshot (e.g., a statusLine rate-limit file written by an interac
 - Best-effort external-state reads: statusLine snapshots, plan-usage APIs, future analytics endpoints (Form B)
 - Establishes a convention: "never guess; always say what you actually know"
 
+### 8. Per-Season Single-Flight Queue with Crash-Discard Policy
+
+**Problem**: Multiple user messages may arrive while a turn is already running for a season. Spawning concurrent headless processes for the same season risks race conditions on the session pointer, the SSE replay buffer, and the skill's single-writer guarantee on `season.draft.json`. A naive queue approach that drains into an unknown session state on crash would silently lose user input or cause the skill to write corrupted state.
+
+**Implementation** (in `turn-runner.ts`, `SeasonTurnRunner`):
+```
+Per season:
+- inFlight: boolean        ← True while a headless process is running
+- queue: string[]          ← FIFO of raw user messages waiting
+
+On submit():
+  1. If inFlight: queue the message, return {status:"queued", queuePosition}
+  2. Else: mark inFlight=true, kick off runTurn() async (don't await), return {status:"started"}
+
+On submitAwait():
+  1. If inFlight: queue the message, return {status:"queued", queuePosition}
+  2. Else: mark inFlight=true, run single turn (await), handle outcome, return {status:"resolved", result}
+
+On runTurn() completion:
+  1. If crashed: discard all queued messages, publish {type:"yts_error", discardedMessages:[...]}
+  2. Else: shift next message from queue, run it (recursive), or mark inFlight=false
+```
+
+**Route-Level Usage** (Phase 2):
+- **`POST /api/seasons/:seasonId/message`** — Uses `submit()` (fire-and-forget). Returns 200 `{started:true}` or 202 `{queued:true, position}` immediately; actual turn outcome arrives later over SSE channel (`yts_error` on crash, or turn events on success). Never fabricates a synchronous crashed/success outcome since the turn hasn't run yet.
+- **`POST /api/seasons/:seasonId/reject`** — Uses `submitAwait()` (sync outcome only when no turn in flight). Returns 200 with outcome or 502 on crash when THIS turn executes synchronously; otherwise 202 `{queued:true, position}` when queued. This preserves the historical `/reject` contract of a synchronous 200/502 response while closing the cold-start hole (a cold-start `/reject` now composes the same first-turn bundle+skill as `/message` would, not skipping them).
+
+**Client-Level Usage (Phase 3: Composer Wiring)**:
+- **Pending-Messages List (AC-ASYNC-2)**: When `/message` returns 202 (queued), the client's `SeasonChat.tsx` appends the message text to a local pending list rendered beneath the composer. This list shows the user their messages are queued and will run FIFO. Each pending entry persists until its corresponding user-role turn arrives over SSE: the client tracks incoming user-role turn events and **drops the oldest pending entry for each new user turn** (FIFO order matches the server's strict queue drain). This ensures messages render exactly once: either as pending, or as a transcript turn, never both.
+- **Crash Recovery (AC-ERROR-2)**: When the SSE channel publishes a `yts_error` event (indicating the turn crashed), the client renders an alert (`role="alert"`), discards the pending list (those messages will not run), and **restores the discarded messages to the composer textarea**. If multiple messages were discarded, they are joined in queue order with blank lines and appended to (never overwriting) any text already in the composer, ensuring no user input is lost. The restoration is idempotent: tracked via a ref counting event arrivals, processed exactly once.
+- **Reject Queueing (AC-INTEGRATION-1)**: When `SignoffPanel.tsx` submits a rejection with notes via `POST /reject` and receives a 202 response (turn is in flight, reject queued), it renders a distinct third state: "Notes queued — will send once the current turn finishes." This is distinct from 200 ("Notes sent") and from non-2xx errors ("The turn failed to complete"), preventing user confusion about whether notes were accepted or lost when the queue is busy.
+
+**Why This Matters**:
+- Concurrent-message safety: seasonId validation + per-season state isolation + synchronous inFlight flip (before any awaits) ensure exactly one spawn per season at a time
+- Input preservation: crashed turns publish discarded messages to the event bus (never silently dropped); the UI restores them to the composer
+- Session fidelity: queued turns drain strictly FIFO into a known-good session, never into a failed process
+- Response honesty: `/message` never fabricates a turn outcome; `/reject` preserves synchronous outcomes only for immediate turns, not queued ones
+
+**Tradeoff**:
+- In-memory per-instance only; two concurrent server processes would each spawn. Acceptable for single-user localhost tool; a multi-server deployment would need a distributed lock (out of scope).
+
+**Key Files**:
+- `console/server/turn-runner.ts` — `SeasonTurnRunner` class, `submit()` and `submitAwait()` methods, `states: Map<seasonId, SeasonQueueState>`
+- `console/server/index.ts` — Routes (`/message` → `submit()`, `/reject` → `submitAwait()`)
+
 ## Conventions
 
 ### File Organization
