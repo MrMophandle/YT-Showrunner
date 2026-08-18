@@ -312,22 +312,31 @@ On submit():
   1. If inFlight: queue the message, return {status:"queued", queuePosition}
   2. Else: mark inFlight=true, kick off runTurn() async (don't await), return {status:"started"}
 
+On submitAwait():
+  1. If inFlight: queue the message, return {status:"queued", queuePosition}
+  2. Else: mark inFlight=true, run single turn (await), handle outcome, return {status:"resolved", result}
+
 On runTurn() completion:
   1. If crashed: discard all queued messages, publish {type:"yts_error", discardedMessages:[...]}
   2. Else: shift next message from queue, run it (recursive), or mark inFlight=false
 ```
 
+**Route-Level Usage** (Phase 2):
+- **`POST /api/seasons/:seasonId/message`** — Uses `submit()` (fire-and-forget). Returns 200 `{started:true}` or 202 `{queued:true, position}` immediately; actual turn outcome arrives later over SSE channel (`yts_error` on crash, or turn events on success). Never fabricates a synchronous crashed/success outcome since the turn hasn't run yet.
+- **`POST /api/seasons/:seasonId/reject`** — Uses `submitAwait()` (sync outcome only when no turn in flight). Returns 200 with outcome or 502 on crash when THIS turn executes synchronously; otherwise 202 `{queued:true, position}` when queued. This preserves the historical `/reject` contract of a synchronous 200/502 response while closing the cold-start hole (a cold-start `/reject` now composes the same first-turn bundle+skill as `/message` would, not skipping them).
+
 **Why This Matters**:
 - Concurrent-message safety: seasonId validation + per-season state isolation + synchronous inFlight flip (before any awaits) ensure exactly one spawn per season at a time
 - Input preservation: crashed turns publish discarded messages to the event bus (never silently dropped); the UI restores them to the composer
 - Session fidelity: queued turns drain strictly FIFO into a known-good session, never into a failed process
+- Response honesty: `/message` never fabricates a turn outcome; `/reject` preserves synchronous outcomes only for immediate turns, not queued ones
 
 **Tradeoff**:
 - In-memory per-instance only; two concurrent server processes would each spawn. Acceptable for single-user localhost tool; a multi-server deployment would need a distributed lock (out of scope).
 
 **Key Files**:
-- `console/server/turn-runner.ts` — `SeasonTurnRunner` class, `states: Map<seasonId, SeasonQueueState>`
-- `console/server/index.ts` — Routes (`/message`, `/reject`) delegate to runner.submit()
+- `console/server/turn-runner.ts` — `SeasonTurnRunner` class, `submit()` and `submitAwait()` methods, `states: Map<seasonId, SeasonQueueState>`
+- `console/server/index.ts` — Routes (`/message` → `submit()`, `/reject` → `submitAwait()`)
 
 ## Conventions
 

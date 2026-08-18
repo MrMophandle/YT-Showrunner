@@ -286,7 +286,7 @@ pending/error states.
 
 ### Phases
 - [x] Phase 1: Turn runner + prompt composition (server core)
-- [ ] Phase 2: Routes — `POST /message` and `/reject` rewire
+- [x] Phase 2: Routes — POST /message and /reject rewire
 - [ ] Phase 3: Composer wiring (client)
 
 ## Creative Phases
