@@ -2,13 +2,13 @@
 slug: season-chat-conversation-loop
 legacy_id:
 feature: season-chat-conversation-loop
-status: PLANNING_COMPLETE
+status: BUILD_COMPLETE
 ---
 
 # season-chat-conversation-loop: Season Chat Conversation Loop
 
 **Complexity**: Level 3
-**Status**: PLANNING_COMPLETE
+**Status**: BUILD_COMPLETE
 **Roadmap**: season-chat-conversation-loop
 **Branch**: feature/season-chat-conversation-loop
 **Worktree**: N/A (in-repo checkout)
@@ -287,7 +287,7 @@ pending/error states.
 ### Phases
 - [x] Phase 1: Turn runner + prompt composition (server core)
 - [x] Phase 2: Routes — POST /message and /reject rewire
-- [ ] Phase 3: Composer wiring (client)
+- [x] Phase 3: Composer wiring (client)
 
 ## Creative Phases
 
@@ -319,14 +319,14 @@ validation **PASS**.
 
 ## Execution State
 
-**Build Status**: RUNNING
-**Current Phase**: BUILD
-**Phase Being Built**: Phase 2: Routes — POST /message and /reject rewire (server core)
-**Phase Number**: 2 of 3
+**Build Status**: COMPLETE
+**Current Phase**: (all phases complete)
+**Phase Being Built**: (none — ready for reflection)
+**Phase Number**: 3 of 3
 **Is Multi-Phase**: YES
-**Last Completed**: Phase 2 build (committing now on feature/season-chat-conversation-loop)
-**Can Resume**: YES
-**Resume From**: Phase 3 (Step 1 — read task context)
+**Last Completed**: Phase 3 build (committed as <pending>)
+**Can Resume**: YES (next: `/bmb:reflect season-chat-conversation-loop`)
+**Resume From**: Reflection phase
 
 ### Active Sub-Agents
 (none)
@@ -359,10 +359,19 @@ validation **PASS**.
 - Step 9 Documentation: COMPLETE — techContext.md (new `/message` endpoint row, `/reject` row updated, Phase 2 Scope section), systemPatterns.md (Pattern #8 extended with `submitAwait()` + route-level usage), task file Phase 2 checkbox marked `[x]` (committed separately as `34e08d0`, prod=0/docs-only — commit guard C2 does not apply)
 - Step 10 Memory Bank update: COMPLETE (this edit)
 
+#### Phase 3 build (this run)
+- Step 0.5 Git Setup: COMPLETE (in-repo checkout, no worktree hop needed)
+- Step 0.6 Phase Gate: COMPLETE (Phase 1 & 2 completed, Phase 3 gates satisfied)
+- Step 3 TDD Agent: COMPLETE — `SeasonChat.tsx` composer wiring (message submit → POST /message, pending-list FIFO-drop-on-new-turn, yts_error alert + discarded-text restoration); `SignoffPanel.tsx` 202-queued state handling (distinct from 200 success and non-2xx failure). 6 new tests in SeasonChat.test.tsx, 1 new test in SignoffPanel.test.tsx. GREEN 89/89 passing (full suite)
+- Step 7 Integration Verification (bmb:build-verifier-agent): COMPLETE — PASS: tests 89/89, typecheck clean, build:client clean, no lint script defined
+- Step 8 Code Review: COMPLETE — APPROVED, 0 blocking issues, 2 recommended non-blocking notes: (1) SeasonChat.tsx message-submit fetch chain has no `.catch`, matching existing DraftPreview.tsx void-poll pattern — acceptable pre-existing consistency; (2) immediate crash of a just-submitted message not restored to composer (only remaining queue via discardedMessages), also noted as deferred fast-follow
+- Step 9 Documentation: COMPLETE — techContext.md (Phase 3 Scope section extended: SeasonChat.tsx fully wired, SignoffPanel.tsx 202-state handling), test file list + count updated (14 files, 89 tests), systemPatterns.md (Pattern #8 extended with Client-Level Usage section covering pending-list FIFO-drop, crash-recovery restore, reject-queueing states), task file Phase 3 checkbox marked `[x]`
+- Step 10 Memory Bank update: COMPLETE (this edit)
+
 ### Guard & Recovery Log
 (empty — commit guard passed on first attempt, both phases)
 
 ### Resumption Notes
 **Can Resume**: YES
-**Resume From**: Phase 3 (Composer wiring — client) via `/bmb:build season-chat-conversation-loop`
-**Notes**: Phase 2 committed and pushed to `feature/season-chat-conversation-loop`. Server-side turn path is now fully wired: `POST /message` and `POST /reject` both compose through `SeasonTurnRunner`. Phase 3 wires `SeasonChat.tsx`'s composer to `POST /message` (pending/error states, pending-message list) and updates `SignoffPanel.tsx` to treat `202` as a distinct "notes queued" state (not success, not failure) per AC-INTEGRATION-1's client-side requirement — this was deliberately deferred from Phase 2 per the Test Strategy's per-phase guidance.
+**Resume From**: Reflection phase via `/bmb:reflect season-chat-conversation-loop`
+**Notes**: All three phases complete (Phase 1: turn runner + prompt composition; Phase 2: routes + rewire; Phase 3: composer wiring + SignoffPanel 202-state). Full conversation loop is now end-to-end functional: composer submits → message queued/started → turn runs → SSE streams events to transcript → pending entries drop FIFO on new user turn → crashes publish yts_error + restore discarded text → rejections can queue behind in-flight turns. AC-HAPPY-4 (skill maintains season.draft.json) verified manually per task spec; all other ACs covered by 89/89 automated tests. Ready for reflection + archive.

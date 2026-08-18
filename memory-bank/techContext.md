@@ -58,9 +58,10 @@
 - `console/src/` — React/Vite client
   - `main.tsx` — Client entry point, mounts React app into DOM
   - `App.tsx` — Root route component, sets up react-router-dom `<BrowserRouter>`
-  - `pages/SeasonChat.tsx` — Season Chat view at route `/seasons/:seasonId/chat`. Renders empty transcript initially, composer (enabled but not wired to send yet), three side panels (Draft Preview, Signoff, Diagnostics stub implementations).
+  - `pages/SeasonChat.tsx` — Season Chat view at route `/seasons/:seasonId/chat`. **Now fully wired**: composes textarea message, submits via `POST /api/seasons/:seasonId/message`, disables `Send` button while request in flight, manages pending-messages list (FIFO-drop-on-new-turn), handles `yts_error` event by rendering alert + restoring discarded text to composer (AC-ERROR-2, AC-ASYNC-2). Renders transcript with new messages as they stream in, plus side panels (Draft Preview, Signoff, Diagnostics).
   - `components/TranscriptTurn.tsx` — Renders one normalized turn from the stream parser (text, tool calls, collapsible thinking blocks)
   - `components/DraftPreview.tsx` — Polls `/api/seasons/:seasonId/draft`, re-renders on new draft, shows "no draft yet" empty state; keeps last-good draft on 204 or poll errors (AC-ASYNC-3)
+  - `components/SignoffPanel.tsx` — Approve/reject-with-notes UI. **Updated Phase 3**: now treats HTTP `202` (queued) as a distinct third response state, rendering "Notes queued — will send once the current turn finishes" per AC-INTEGRATION-1 (matches `/message` route's 202-on-busy behavior).
 - `console/vite.config.ts` — Vite frontend build config with react plugin
 - `console/tsconfig.json` — TypeScript config for frontend (includes `src/**`, `jsx: react-jsx`, DOM lib)
 
@@ -147,20 +148,22 @@ Run all commands from the `console/` directory.
 - `console/server/stream-parser.test.ts` — Stream-json parsing, turn grouping
 - `console/server/sse.test.ts` — SeasonEventBus pub/sub and replay buffer behavior
 - `console/server/season-session.test.ts` — Session store (in-memory, file-based), spawn lifecycle, --resume behavior
-- `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point (updated Phase 4: added tests for `/approve` and `/reject`; updated Phase 5: added tests for `/statusline` route)
-- `console/server/context-bundle.test.ts` — Context bundle assembly from canon files, graceful omission of missing files, first-turn-only bundle inclusion
-- `console/server/draft-watcher.test.ts` — Draft file polling, torn-read handling, last-good graceful degradation (AC-ASYNC-3), structural validation (Phase 3)
-- `console/server/canon-commit.test.ts` — Canon file commit (atomic temp+rename for both season file and ledger), test-injectable filesystem operations, seasonId validation, ledger formatting (Phase 4)
-- `console/server/statusline-probe.test.ts` — Statusline snapshot read, freshness validation, graceful degradation on missing/stale/unreadable snapshots (Phase 5)
-- `console/src/components/TranscriptTurn.test.tsx` — Turn rendering (text, tool calls, collapsible thinking) (Phase 3)
-- `console/src/components/DraftPreview.test.tsx` — Draft polling, empty state, last-good-on-error behavior (Phase 3)
-- `console/src/components/SignoffPanel.test.tsx` — Approve/reject UI, draft polling state, approval/rejection flow, error handling for 502 crashes (Phase 4)
-- `console/src/components/DiagnosticsPanel.test.tsx` — Context-usage math, real rendering, plan-usage polling, warning threshold, unavailable-state rendering (Phase 5)
+- `console/server/index.test.ts` — HTTP routes, seasonId validation at entry point (extended Phase 3 task: added tests for `/message` route, cold-start `/reject` integration; earlier phases: `/approve`, `/reject`, `/statusline` routes)
+- `console/server/context-bundle.test.ts` — Context bundle assembly from canon files, graceful omission of missing files, first-turn-only bundle inclusion, skill-prefix composition (extended Phase 3 task)
+- `console/server/draft-watcher.test.ts` — Draft file polling, torn-read handling, last-good graceful degradation (AC-ASYNC-3), structural validation
+- `console/server/turn-runner.test.ts` — First-turn vs resumed prompt composition, skill prefix, synthetic user echo, queue ordering, single-flight guarantee, crash-discard policy (Phase 3 task)
+- `console/server/canon-commit.test.ts` — Canon file commit (atomic temp+rename for both season file and ledger), test-injectable filesystem operations, seasonId validation, ledger formatting
+- `console/server/statusline-probe.test.ts` — Statusline snapshot read, freshness validation, graceful degradation on missing/stale/unreadable snapshots
+- `console/src/components/TranscriptTurn.test.tsx` — Turn rendering (text, tool calls, collapsible thinking)
+- `console/src/components/DraftPreview.test.tsx` — Draft polling, empty state, last-good-on-error behavior
+- `console/src/components/SignoffPanel.test.tsx` — Approve/reject UI, draft polling state, approval/rejection flow, error handling for 502 crashes, queued-notes (202) state (extended Phase 3 task)
+- `console/src/components/DiagnosticsPanel.test.tsx` — Context-usage math, real rendering, plan-usage polling, warning threshold, unavailable-state rendering
+- `console/src/pages/SeasonChat.test.tsx` — Composer form submission, pending-list rendering, yts_error alert, discarded-message restoration (Phase 3 task)
 
 ### Test Count & Coverage
-- 63 tests total across 12 files (was 52 across 10 files in Phase 4; was 41 across 8 files in Phase 3)
-- Phase 5 added: 5 tests in statusline-probe.test.ts (fresh/stale/unavailable snapshot reads, JSON parse failures, invalid shape), 6 tests in DiagnosticsPanel.test.tsx (context-usage math, real rendering, plan-usage unavailable-never-blocks-context, warning threshold crossed/not-crossed), 1 test added to index.test.ts for the new `/statusline` route (total +12 tests, but some pre-existing tests were consolidations from refactoring, net +11 new test cases)
-- Coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection, draft-file torn-read handling, canon commit atomicity, React component rendering and state updates, approval/rejection workflows, context-usage computation from usage blocks, statusline snapshot read/validation/freshness, context-warning threshold detection
+- 89 tests total across 14 files (Phase 3 task: season-chat-conversation-loop added 7 new tests: 10 in turn-runner.test.ts, 2 in context-bundle.test.ts, 7 in index.test.ts for `/message` + cold-start `/reject`, 6 in SeasonChat.test.tsx, 1 in SignoffPanel.test.tsx for 202 queued-notes state = net +26 tests from 63; earlier phases in this same build had added more)
+- Phase 3 task coverage: turn-runner single-flight FIFO queue, crash-discard policy, synthetic user echo, first-turn skill prefix and context bundle (never on resumption), prompt composition identity between `/message` and `/reject` routes, cold-start `/reject` loads bundle+skill (AC-INTEGRATION-1), `/message` returns 200/202/400/502 appropriately, composer submits and disables on flight, pending-message list renders and drops FIFO on new user turn, yts_error event handling and discarded-text restoration, SignoffPanel treats 202 as queued state (AC-INTEGRATION-1 client half)
+- Full coverage includes: normal path (first turn, resumed turn), error cases (spawn failures, malformed stream), late-subscriber replay, concurrent session isolation, canon file reading (real + fixture), graceful ENOENT handling, seasonId path-traversal rejection, draft-file torn-read handling, canon commit atomicity, React component rendering and state updates, approval/rejection workflows, context-usage computation, statusline snapshot read/validation/freshness, single-flight guarantee, queue ordering, crash recovery, pending-message visibility
 
 ### Running Tests
 ```bash

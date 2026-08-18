@@ -54,4 +54,29 @@ describe("SignoffPanel", () => {
     expect(screen.getByRole("alert").textContent).toMatch(/fail|crash|error/i);
     expect(screen.queryByText(/notes sent/i)).not.toBeInTheDocument();
   });
+
+  it("shows a queued state (not success, not failure) when reject returns 202 (AC-INTEGRATION-1)", async () => {
+    const fetchFn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/draft")) {
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes("/reject") && init?.method === "POST") {
+        return new Response(JSON.stringify({ queued: true, position: 1 }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    render(<SignoffPanel seasonId="season-2" pollIntervalMs={10} fetchFn={fetchFn} />);
+
+    fireEvent.change(screen.getByLabelText(/notes/i), { target: { value: "Please revise episode 2." } });
+    fireEvent.click(screen.getByRole("button", { name: /reject with notes/i }));
+
+    await waitFor(() => expect(screen.getByText(/notes queued/i)).toBeInTheDocument());
+    expect(screen.queryByText(/notes sent/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
