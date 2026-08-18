@@ -321,12 +321,12 @@ validation **PASS**.
 
 **Build Status**: RUNNING
 **Current Phase**: BUILD
-**Phase Being Built**: Phase 1: Turn runner + prompt composition (server core)
-**Phase Number**: 1 of 3
+**Phase Being Built**: Phase 2: Routes — POST /message and /reject rewire (server core)
+**Phase Number**: 2 of 3
 **Is Multi-Phase**: YES
-**Last Completed**: Phase 1 build (committed on feature/season-chat-conversation-loop)
+**Last Completed**: Phase 2 build (committing now on feature/season-chat-conversation-loop)
 **Can Resume**: YES
-**Resume From**: Phase 2 (Step 1 — read task context)
+**Resume From**: Phase 3 (Step 1 — read task context)
 
 ### Active Sub-Agents
 (none)
@@ -348,12 +348,21 @@ validation **PASS**.
 - Step 7 Integration Verification (bmb:build-verifier-agent): COMPLETE — PASS: tests 75/75, typecheck clean, build:client clean, no lint script defined
 - Step 8 Code Review: COMPLETE — APPROVED, 0 blocking issues, security PASS (no new deps; react-router/vitest deferrals unchanged), 1 recommended note (skill-prefix single-space join vs. multi-line bundle — flagged for Phase 2/3 confirmation against SKILL.md's actual invocation parsing)
 - Step 9 Documentation: COMPLETE — techContext.md (new Phase 1 Scope section + known non-blocking item), systemPatterns.md (new Pattern #8: Per-Season Single-Flight Queue with Crash-Discard Policy), task file Phase 1 checkbox marked `[x]`
+- Step 10 Memory Bank update: COMPLETE (Phase 1 edit)
+
+#### Phase 2 build (this run)
+- Step 0.5 Git Setup: COMPLETE (in-repo checkout, no worktree hop needed)
+- Step 0.6 Phase Gate: COMPLETE (roadmap populated, creative doc complete)
+- Step 3 TDD Agent: COMPLETE — `SeasonTurnRunner.submitAwait()` added (turn-runner.ts, refactored `runTurn` into shared `runSingleTurn`/`handleTurnOutcome`); `POST /api/seasons/:seasonId/message` route added; `POST /api/seasons/:seasonId/reject` rewired through the runner (closes cold-start hole, AC-INTEGRATION-1). +7 tests in index.test.ts. GREEN 82/82 passing (full suite)
+- Step 7 Integration Verification (bmb:build-verifier-agent): COMPLETE — PASS: tests 82/82, typecheck clean, build:client clean, no lint script defined
+- Step 8 Code Review: COMPLETE — APPROVED, 0 blocking/recommended/optional issues. Confirmed shared prompt-composition path (no divergence between `submit()`/`submitAwait()`), fire-and-forget queue drain not a regression, all 3 pre-existing `/reject` tests' intent preserved, SignoffPanel.tsx correctly untouched (202-handling deferred to Phase 3)
+- Step 9 Documentation: COMPLETE — techContext.md (new `/message` endpoint row, `/reject` row updated, Phase 2 Scope section), systemPatterns.md (Pattern #8 extended with `submitAwait()` + route-level usage), task file Phase 2 checkbox marked `[x]` (committed separately as `34e08d0`, prod=0/docs-only — commit guard C2 does not apply)
 - Step 10 Memory Bank update: COMPLETE (this edit)
 
 ### Guard & Recovery Log
-(empty — commit guard passed on first attempt)
+(empty — commit guard passed on first attempt, both phases)
 
 ### Resumption Notes
 **Can Resume**: YES
-**Resume From**: Phase 2 (Routes — `POST /message` and `/reject` rewire) via `/bmb:build season-chat-conversation-loop`
-**Notes**: Phase 1 committed and pushed to `feature/season-chat-conversation-loop`. `SeasonTurnRunner.submit()` is ready for Phase 2's routes to call; not yet wired into `index.ts`. Carry forward the code-review note on the skill-prefix single-space join.
+**Resume From**: Phase 3 (Composer wiring — client) via `/bmb:build season-chat-conversation-loop`
+**Notes**: Phase 2 committed and pushed to `feature/season-chat-conversation-loop`. Server-side turn path is now fully wired: `POST /message` and `POST /reject` both compose through `SeasonTurnRunner`. Phase 3 wires `SeasonChat.tsx`'s composer to `POST /message` (pending/error states, pending-message list) and updates `SignoffPanel.tsx` to treat `202` as a distinct "notes queued" state (not success, not failure) per AC-INTEGRATION-1's client-side requirement — this was deliberately deferred from Phase 2 per the Test Strategy's per-phase guidance.

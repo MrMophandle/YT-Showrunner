@@ -26,7 +26,7 @@ import {
   buildTurnPrompt,
   renderContextBundle,
 } from "./context-bundle.js";
-import { isValidSeasonId, type SeasonSessionManager, type SessionStore } from "./season-session.js";
+import { isValidSeasonId, type RunTurnResult, type SeasonSessionManager, type SessionStore } from "./season-session.js";
 import type { SeasonEventBus } from "./sse.js";
 
 export interface SeasonTurnRunnerOptions {
@@ -47,6 +47,20 @@ export interface SeasonTurnRunnerOptions {
 /** Result of `submit()` — describes what happened to THIS call's message, not the eventual turn outcome (which arrives over the event bus). */
 export type SubmitResult =
   | { status: "started" }
+  | { status: "queued"; queuePosition: number };
+
+/**
+ * Result of `submitAwait()` — unlike `submit()`, the "resolved" branch carries
+ * the actual `RunTurnResult` of THIS call's own turn (crashed or not), for
+ * callers (the `/reject` route) that need to preserve a synchronous
+ * success/failure HTTP response when nothing was already in flight. When a
+ * turn IS already in flight, the message is queued exactly as `submit()`
+ * would queue it — the caller cannot get a synchronous outcome for a queued
+ * message (its turn hasn't run yet), so this mirrors `submit()`'s "queued"
+ * shape rather than awaiting the eventual drained result.
+ */
+export type SubmitAwaitResult =
+  | { status: "resolved"; result: RunTurnResult }
   | { status: "queued"; queuePosition: number };
 
 interface SeasonQueueState {
@@ -125,8 +139,38 @@ export class SeasonTurnRunner {
     return { status: "started" };
   }
 
-  /** Runs one turn to completion, then either drains the next queued message or discards the queue on crash. */
-  private async runTurn(seasonId: string, userMessage: string): Promise<void> {
+  /**
+   * Same single-flight/queue semantics as `submit()`, but for callers that
+   * need a synchronous outcome for THEIR OWN message when nothing was
+   * already in flight (the `/reject` route's historical contract — a
+   * resumed turn's crash/success must be reflected in that same HTTP
+   * response). If a turn IS already in flight, this queues exactly like
+   * `submit()` — there is no synchronous outcome to hand back for a message
+   * that hasn't run yet.
+   */
+  async submitAwait(seasonId: string, userMessage: string): Promise<SubmitAwaitResult> {
+    if (!isValidSeasonId(seasonId)) {
+      throw new Error(`Invalid seasonId: ${JSON.stringify(seasonId)}`);
+    }
+
+    const state = this.getOrCreateState(seasonId);
+
+    if (state.inFlight) {
+      state.queue.push(userMessage);
+      return { status: "queued", queuePosition: state.queue.length };
+    }
+
+    state.inFlight = true;
+    const result = await this.runSingleTurn(seasonId, userMessage);
+    // Drain the next queued message (fire-and-forget) or discard the queue
+    // on crash — same post-turn handling `runTurn` applies for `submit()` —
+    // WITHOUT blocking this call's return on that follow-on work.
+    this.handleTurnOutcome(seasonId, result);
+    return { status: "resolved", result };
+  }
+
+  /** Composes the prompt (first-turn bundle+skill vs. resumed bare message), publishes the synthetic echo, and runs exactly one turn — no crash/queue handling. */
+  private async runSingleTurn(seasonId: string, userMessage: string): Promise<RunTurnResult> {
     this.eventBus.startTurn(seasonId);
 
     const echo: SyntheticUserEvent = {
@@ -147,10 +191,13 @@ export class SeasonTurnRunner {
       prompt = buildTurnPrompt({ hasExistingSession: false, contextBundleText, userMessage });
     }
 
-    const result = await this.sessionManager.sendMessage(seasonId, prompt, {
+    return this.sessionManager.sendMessage(seasonId, prompt, {
       onEvent: (rawEvent) => this.eventBus.publish(seasonId, rawEvent),
     });
+  }
 
+  /** On crash: discards the queue and publishes `yts_error`. Otherwise: drains the next queued message (fire-and-forget) or clears `inFlight`. */
+  private handleTurnOutcome(seasonId: string, result: RunTurnResult): void {
     const state = this.getOrCreateState(seasonId);
 
     if (result.crashed) {
@@ -171,9 +218,15 @@ export class SeasonTurnRunner {
 
     const next = state.queue.shift();
     if (next !== undefined) {
-      await this.runTurn(seasonId, next);
+      void this.runTurn(seasonId, next);
     } else {
       state.inFlight = false;
     }
+  }
+
+  /** Runs one turn to completion, then either drains the next queued message or discards the queue on crash. Fire-and-forget — callers do not await this. */
+  private async runTurn(seasonId: string, userMessage: string): Promise<void> {
+    const result = await this.runSingleTurn(seasonId, userMessage);
+    this.handleTurnOutcome(seasonId, result);
   }
 }

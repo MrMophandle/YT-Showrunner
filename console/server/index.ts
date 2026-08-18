@@ -19,6 +19,7 @@ import { DraftWatcher } from "./draft-watcher.js";
 import { FileSessionStore, isValidSeasonId, SeasonSessionManager, type SpawnFn } from "./season-session.js";
 import { formatSseMessage, SeasonEventBus } from "./sse.js";
 import { readStatuslineSnapshot } from "./statusline-probe.js";
+import { SeasonTurnRunner } from "./turn-runner.js";
 
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.YTS_CONSOLE_PORT ?? 8787);
@@ -36,6 +37,10 @@ export function createApp(options: CreateAppOptions = {}) {
   const sessionStore = new FileSessionStore(canonRoot);
   const sessionManager = new SeasonSessionManager(sessionStore, options.spawnFn);
   const eventBus = new SeasonEventBus();
+  // Owns prompt composition (first-turn bundle+skill vs. resumed bare
+  // message) and the per-season single-flight queue shared by /message and
+  // /reject below (Phase 2) — see turn-runner.ts's module docstring.
+  const turnRunner = new SeasonTurnRunner({ sessionManager, store: sessionStore, eventBus, canonRoot });
   // One DraftWatcher per season, created lazily on first request — mirrors
   // SeasonEventBus's per-seasonId channel map. seasonId is validated at every
   // call site below before it ever reaches this map or DraftWatcher's own
@@ -165,12 +170,71 @@ export function createApp(options: CreateAppOptions = {}) {
   });
 
   /**
+   * Sends a composer message into the season's drafting conversation
+   * (AC-HAPPY-2 / AC-ASYNC-1). Delegates entirely to `SeasonTurnRunner.submit`
+   * for prompt composition (first-turn bundle+skill vs. resumed bare
+   * message), the synthetic user echo, and the per-season single-flight
+   * queue — this route does NOT call `eventBus.startTurn`/`publish` itself
+   * (the runner already does, and calling it here too would double-start
+   * the turn buffer).
+   *
+   * `submit()` deliberately does not await the turn's completion (see the
+   * runner's docstring), so this response can only report what happened to
+   * THIS call — accepted-and-running, or queued behind an in-flight turn —
+   * never the eventual crashed/succeeded outcome. That arrives later over
+   * the SSE channel (`yts_error` on crash, or the assistant's own turn
+   * events on success). Fabricating a `crashed` field here would violate
+   * AC-ERROR-1 just as surely as fabricating a false 200 would.
+   */
+  app.post("/api/seasons/:seasonId/message", async (c) => {
+    const seasonId = c.req.param("seasonId");
+    if (!isValidSeasonId(seasonId)) {
+      return c.json({ error: "Invalid seasonId" }, 400);
+    }
+
+    let body: { message?: unknown };
+    try {
+      body = (await c.req.json()) as { message?: unknown };
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const message = typeof body.message === "string" ? body.message.trim() : "";
+    if (message.length === 0) {
+      return c.json({ error: "message is required" }, 400);
+    }
+
+    const result = await turnRunner.submit(seasonId, message);
+
+    if (result.status === "queued") {
+      // AC-ASYNC-1: honest "accepted but not yet running" — a turn is
+      // already in flight for this season; this message's own turn (and
+      // therefore its own crashed/success outcome) has not started yet.
+      return c.json({ queued: true, position: result.queuePosition }, 202);
+    }
+
+    // "started" only means the turn was kicked off, not that it succeeded —
+    // no `crashed`/`exitCode`/`sessionId` field is fabricated here.
+    return c.json({ started: true }, 200);
+  });
+
+  /**
    * Rejects the current draft with notes (AC-HAPPY-5): no canon file is
    * ever written on this path. The notes are sent as the NEXT message in
-   * the SAME resumed session (SeasonSessionManager re-reads the persisted
-   * session id itself), and the reply streams into the same SSE channel
-   * the transcript already subscribes to — `startTurn` clears the
-   * current-turn buffer exactly as a composer-sent message would.
+   * the SAME resumed session, composed and run through the same
+   * `SeasonTurnRunner` as `/message` (AC-INTEGRATION-1) — so a cold-start
+   * `/reject` (no prior session for this season) composes the same
+   * first-turn context bundle + skill prefix `/message` would, instead of
+   * bypassing it as the pre-Phase-2 direct `sessionManager.sendMessage`
+   * call did.
+   *
+   * Uses `submitAwait` (not `submit`) so this route's historical
+   * synchronous 200/502 contract is preserved when nothing was already in
+   * flight for this season: the caller gets THIS turn's actual
+   * crashed/succeeded outcome, not a fire-and-forget acknowledgement. If a
+   * turn IS already in flight, this queues behind it and returns 202,
+   * exactly like `/message` — there is no synchronous outcome available for
+   * a message that hasn't run yet.
    */
   app.post("/api/seasons/:seasonId/reject", async (c) => {
     const seasonId = c.req.param("seasonId");
@@ -190,10 +254,13 @@ export function createApp(options: CreateAppOptions = {}) {
       return c.json({ error: "notes is required" }, 400);
     }
 
-    eventBus.startTurn(seasonId);
-    const result = await sessionManager.sendMessage(seasonId, notes, {
-      onEvent: (event) => eventBus.publish(seasonId, event),
-    });
+    const outcome = await turnRunner.submitAwait(seasonId, notes);
+
+    if (outcome.status === "queued") {
+      return c.json({ queued: true, position: outcome.queuePosition }, 202);
+    }
+
+    const result = outcome.result;
 
     // AC-ERROR-1: a crashed resumed turn (non-zero exit, dead process, or a stream that
     // closed without a terminal `result` event — see RunTurnResult.crashed) must never
@@ -212,7 +279,7 @@ export function createApp(options: CreateAppOptions = {}) {
     return c.json({ crashed: false, exitCode: result.exitCode, sessionId: result.sessionId }, 200);
   });
 
-  return { app, sessionManager, eventBus, draftWatchers };
+  return { app, sessionManager, eventBus, draftWatchers, turnRunner };
 }
 
 /* c8 ignore start -- process entry point, exercised via manual `npm run dev:server`, not unit tests */
