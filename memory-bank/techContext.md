@@ -38,6 +38,13 @@
   - `sse.ts` — Server-Sent Events broadcast bus (in-memory pub/sub + replay buffer)
   - `stream-parser.ts` — TypeScript adaptation of `.agent-logs/claude_transcript_to_md.py`'s turn-grouping logic
 
+**headless-draft-writes Phase 1: Permission Mode Handling**
+
+Extended `console/server/season-session.ts` with explicit permission flags for spawned headless processes:
+- `buildArgs()` now includes permission-mode-determined CLI flags: by default `--allowedTools Read,Write,Bash(mv *)` (tight allowlist); opt-in escape hatch via `YTS_PERMISSION_MODE=dangerously-skip-permissions` adds `--dangerously-skip-permissions` instead and logs a startup warning at module load.
+- New exports: `PermissionMode` type, `ALLOWED_TOOLS` constant, `resolvePermissionMode()` function, `warnIfPermissionsDisabled()` function.
+- The tight allowlist mirrors `.claude/settings.local.json`'s precedent for space-separated Bash-permission syntax (`Bash(mv *)` is narrowly scoped, not a bare `Bash` grant).
+
 **Phase 2 Scope (Context Bundle + Skill Plumbing):**
 - `console/server/context-bundle.ts` — Context bundle assembly: reads canon files (series overview, character bibles, previous season summaries, continuity ledger) and renders them into a first-turn prompt prefix. Missing optional files degrade gracefully (omitted, never fabricated). Continuity ledger content is included verbatim, never paraphrased.
 - `.claude/skills/season-drafting/SKILL.md` — Prompt file (not TypeScript) defining conversational season-drafting logic: canon-aware questioning, thread-weaving, inline story-craft/canon-consistency checks, and maintenance of a draft file at `<CANON_ROOT>/seasons/<seasonId>/season.draft.json`. This skill does not implement signoff/approval (Phase 4) or output the draft directly to the user.
@@ -117,6 +124,7 @@ interface SeasonDraft {
 |----------|---------|---------|
 | `YTS_CONSOLE_PORT` | 8787 | Port the Hono backend binds to (always `127.0.0.1`, localhost only) |
 | `YTS_CANON_ROOT` | `./Canon` | Base directory where season session pointers and drafts are persisted |
+| `YTS_PERMISSION_MODE` | (unset) | Permission posture for the spawned `claude -p` season-turn process. Unset/empty/any value other than `dangerously-skip-permissions` uses a tight `--allowedTools` allowlist (`Read`, `Write`, `Bash(mv *)`); setting it to the literal string `dangerously-skip-permissions` swaps in `--dangerously-skip-permissions` instead and logs a startup warning naming the reduced safety posture. |
 | `NODE_ENV` | (unset) | When `test`, skips server startup on `npm run dev:server` |
 
 ## Development Commands
