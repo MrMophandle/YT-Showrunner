@@ -45,6 +45,14 @@ Extended `console/server/season-session.ts` with explicit permission flags for s
 - New exports: `PermissionMode` type, `ALLOWED_TOOLS` constant, `resolvePermissionMode()` function, `warnIfPermissionsDisabled()` function.
 - The tight allowlist mirrors `.claude/settings.local.json`'s precedent for space-separated Bash-permission syntax (`Bash(mv *)` is narrowly scoped, not a bare `Bash` grant).
 
+**headless-draft-writes Phase 2: Path Communication + Route-Authoritative SeasonId**
+
+Closes defects 2 and 3 by ensuring the spawned headless process is explicitly told its canon root and draft path:
+- `console/server/context-bundle.ts` — `BuildTurnPromptOptions` now requires `canonRoot` (show-level canon root) and `seasonId` (route-authoritative season identifier) fields. New helpers `resolveDraftPath()` and `renderPathFacts()` compute and state the absolute resolved draft path `<canonRoot>/seasons/<seasonId>/season.draft.json` on the first turn only (via `buildTurnPrompt()`), distinguishing the show-scoped canon root from the season-scoped draft path (AC-PATH-2). Resumed turns omit both facts since the session already carries them (AC-PATH-3).
+- `console/server/turn-runner.ts` — Both `buildTurnPrompt()` call sites in `runSingleTurn()` now pass `canonRoot` and `seasonId` through, ensuring the prompt facts are stated on first-turn only.
+- `.claude/skills/season-drafting/SKILL.md` — Corrected to document `<seasonId>` as the route-authoritative value (never inferred from conversation content) and state it is always taken from the prompt, never guessed (AC-SEASON-1). Removed stale `console/fixtures/canon/` local-dev fallback framing.
+- Tests: `context-bundle.test.ts` (+5 new, 3 adjusted) and `turn-runner.test.ts` (+1 extended) now verify path facts are stated on first turn and omitted on resumed turns. Full test suite: 103/103 passing.
+
 **Phase 2 Scope (Context Bundle + Skill Plumbing):**
 - `console/server/context-bundle.ts` — Context bundle assembly: reads canon files (series overview, character bibles, previous season summaries, continuity ledger) and renders them into a first-turn prompt prefix. Missing optional files degrade gracefully (omitted, never fabricated). Continuity ledger content is included verbatim, never paraphrased.
 - `.claude/skills/season-drafting/SKILL.md` — Prompt file (not TypeScript) defining conversational season-drafting logic: canon-aware questioning, thread-weaving, inline story-craft/canon-consistency checks, and maintenance of a draft file at `<CANON_ROOT>/seasons/<seasonId>/season.draft.json`. This skill does not implement signoff/approval (Phase 4) or output the draft directly to the user.
