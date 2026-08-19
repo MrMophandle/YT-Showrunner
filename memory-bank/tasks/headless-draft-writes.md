@@ -275,10 +275,10 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 ## Implementation Roadmap
 
 ### Extended Source Files
-- [ ] `console/server/season-session.ts` — `buildArgs()` gains the `--allowedTools`
+- [x] `console/server/season-session.ts` — `buildArgs()` gains the `--allowedTools`
       allowlist and the env-var-gated `--dangerously-skip-permissions` branch; startup
       warning when the hatch is active
-- [ ] `console/server/season-session.test.ts` — tests for the above
+- [x] `console/server/season-session.test.ts` — tests for the above
 - [ ] `console/server/context-bundle.ts` — extend `BuildTurnPromptOptions` (line ~154)
       with `canonRoot` + `seasonId`; `buildTurnPrompt()` (line ~172) states the show canon
       root and the resolved absolute draft path on the first-turn branch only
@@ -290,10 +290,10 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
       not a threading exercise.
 - [ ] `.claude/skills/season-drafting/SKILL.md` — correct the `<seasonId>` definition and
       remove the fixture-canon fallback guidance (AC-SEASON-1)
-- [ ] `memory-bank/techContext.md` — document the new env var in § Environment Variables
+- [x] `memory-bank/techContext.md` — document the new env var in § Environment Variables
 
 ### Phases
-- [ ] Phase 1: Spawn permissions + escape hatch (`season-session.ts`)
+- [x] Phase 1: Spawn permissions + escape hatch (`season-session.ts`)
 - [ ] Phase 2: Path communication + route-authoritative seasonId (`context-bundle.ts`,
       SKILL.md) — ends with the AC-VERIFY-1 runbook, output recorded
 
@@ -305,15 +305,15 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 
 ## Execution State
 
-**Build Status**: IDLE
-**Current Phase**: PLANNED → BUILD
-**Current Step**: (not started)
-**Phase Being Built**: (none)
-**Phase Number**: 0 of 2
+**Build Status**: RUNNING
+**Current Phase**: BUILD
+**Current Step**: Step 11 - Git Completion (Phase 1)
+**Phase Being Built**: Phase 1: Spawn permissions + escape hatch
+**Phase Number**: 1 of 2
 **Is Multi-Phase**: YES
-**Last Completed**: PLAN
-**Can Resume**: NO
-**Resume From**: (n/a — next command is `/bmb:build headless-draft-writes`)
+**Last Completed**: Phase 1 (season-session.ts permission flags)
+**Can Resume**: YES
+**Resume From**: `/bmb:build headless-draft-writes` → Phase 2
 
 ### Active Sub-Agents
 (none)
@@ -326,13 +326,33 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 - Design decisions approved by user: route-authoritative seasonId; canon is show-scoped;
   tight `--allowedTools` by default; opt-in `--dangerously-skip-permissions` escape hatch
 - Roadmap feature + task file authored
+- Phase 1 TDD (RED→GREEN): `buildArgs()` in `console/server/season-session.ts` gained
+  `PermissionMode` ("tight" default / "dangerously-skip-permissions" opt-in via
+  `YTS_PERMISSION_MODE`), `ALLOWED_TOOLS = ["Read", "Write", "Bash(mv *)"]`,
+  `resolvePermissionMode()`, `warnIfPermissionsDisabled()`. 10 new tests in
+  `season-session.test.ts` (AC-PERM-1/2/3 + AC-REGRESSION-1 slice)
+- Phase 1 Integration Verification: tests 99/99 PASS, typecheck PASS, build PASS
+  (one round-trip: a `warnSpy.mock.calls[0][0]` strict-null typecheck FAIL was fixed
+  with optional chaining, then re-verified PASS)
+- Phase 1 Code Review: iteration 1 found a BLOCKING issue (`Bash(mv:*)` colon-separated
+  Bash pattern doesn't match this repo's actual permission-grant syntax — real CLI/repo
+  precedent is space-separated `Bash(mv *)`); fixed directly (code + tightened AC-PERM-2
+  test assertion + doc comment), re-verified PASS, re-reviewed APPROVED (iteration 2)
+- Phase 1 Documentation: `memory-bank/techContext.md` updated with `YTS_PERMISSION_MODE`
+  env var row + a task-scoped Phase 1 note under § Component Structure (committed
+  separately as `a47c525` by the documentation sub-agent, ahead of the phase commit —
+  docs-only, no production/test code in that commit)
 
 ### Guard & Recovery Log
-(empty)
+- Phase 1: code-review FAIL (blocking, `Bash(mv:*)` vs `Bash(mv *)` syntax) → fixed
+  inline by orchestrator (not full TDD re-dispatch — single-line code fix + matching
+  test tightening) → re-verify PASS → re-review APPROVED. No commit-guard (C1/C2/C3)
+  failures this phase.
 
 ### Resumption Notes
-**Can Resume**: NO
-**Notes**: Planned but not started. Phase 1 is the spawn-argument work; Phase 2 is prompt
-composition plus the SKILL.md correction and must end with the AC-VERIFY-1 runbook run and
-its observed output recorded here. Do not mark AC-VERIFY-1 satisfied from a green suite —
-that is precisely the failure this task exists to correct.
+**Can Resume**: YES
+**Notes**: Phase 1 complete and committed to `feature/headless-draft-writes` (pushed).
+Phase 2 is prompt composition (`context-bundle.ts`) plus the SKILL.md correction and
+must end with the AC-VERIFY-1 runbook run and its observed output recorded here. Do not
+mark AC-VERIFY-1 satisfied from a green suite alone — that is precisely the failure this
+task exists to correct. Next command: `/bmb:build headless-draft-writes`.

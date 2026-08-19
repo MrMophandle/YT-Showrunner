@@ -2,12 +2,16 @@ import { EventEmitter } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ALLOWED_TOOLS,
   FileSessionStore,
   InMemorySessionStore,
   SeasonSessionManager,
+  buildArgs,
   isValidSeasonId,
+  resolvePermissionMode,
+  warnIfPermissionsDisabled,
   type ChildProcessLike,
   type SpawnFn,
 } from "./season-session.js";
@@ -175,5 +179,100 @@ describe("FileSessionStore seasonId validation", () => {
     const loaded = await store.load("season_1-Test");
 
     expect(loaded).toEqual(record);
+  });
+});
+
+describe("resolvePermissionMode (AC-PERM-3)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns 'tight' when YTS_PERMISSION_MODE is unset", () => {
+    vi.stubEnv("YTS_PERMISSION_MODE", undefined as unknown as string);
+    expect(resolvePermissionMode()).toBe("tight");
+  });
+
+  it("returns 'tight' when YTS_PERMISSION_MODE is empty", () => {
+    vi.stubEnv("YTS_PERMISSION_MODE", "");
+    expect(resolvePermissionMode()).toBe("tight");
+  });
+
+  it("returns 'tight' when YTS_PERMISSION_MODE is any non-opt-in value", () => {
+    vi.stubEnv("YTS_PERMISSION_MODE", "yolo");
+    expect(resolvePermissionMode()).toBe("tight");
+  });
+
+  it("returns 'dangerously-skip-permissions' only for the exact documented opt-in token", () => {
+    vi.stubEnv("YTS_PERMISSION_MODE", "dangerously-skip-permissions");
+    expect(resolvePermissionMode()).toBe("dangerously-skip-permissions");
+  });
+});
+
+describe("warnIfPermissionsDisabled (AC-PERM-3 startup warning)", () => {
+  it("logs a one-line warning naming the reduced safety posture when the escape hatch is active", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    warnIfPermissionsDisabled("dangerously-skip-permissions");
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/dangerously-skip-permissions/i);
+    warnSpy.mockRestore();
+  });
+
+  it("does not log anything when the tight allowlist is in effect", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    warnIfPermissionsDisabled("tight");
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+describe("buildArgs (AC-PERM-1, AC-PERM-2, AC-PERM-3)", () => {
+  it("includes a tight --allowedTools allowlist and no --dangerously-skip-permissions by default", () => {
+    const args = buildArgs("hello", null, "tight");
+
+    expect(args).toContain("--allowedTools");
+    const idx = args.indexOf("--allowedTools");
+    expect(args[idx + 1]).toBe(ALLOWED_TOOLS.join(","));
+    expect(args).not.toContain("--dangerously-skip-permissions");
+  });
+
+  it("grants only what draft maintenance requires — no bare/blanket Bash or wildcard grant (AC-PERM-2)", () => {
+    expect(ALLOWED_TOOLS).not.toContain("Bash");
+    expect(ALLOWED_TOOLS).not.toContain("*");
+    for (const tool of ALLOWED_TOOLS) {
+      if (tool.startsWith("Bash")) {
+        expect(tool).not.toBe("Bash");
+        // Space-separated command-prefix syntax (matches this repo's existing
+        // .claude/settings.local.json precedent and the CLI's documented
+        // example) — NOT colon-separated, which the real CLI does not parse
+        // as a scoped grant.
+        expect(tool).toMatch(/^Bash\([a-z]+ \*\)$/);
+        expect(tool).not.toContain(":");
+      }
+    }
+    // Sufficient for canon reads plus a temp-file-then-rename atomic write.
+    expect(ALLOWED_TOOLS).toContain("Read");
+    expect(ALLOWED_TOOLS).toContain("Write");
+    expect(ALLOWED_TOOLS).toContain("Bash(mv *)");
+  });
+
+  it("switches to --dangerously-skip-permissions and omits --allowedTools when that mode is passed (AC-PERM-3)", () => {
+    const args = buildArgs("hello", null, "dangerously-skip-permissions");
+
+    expect(args).toContain("--dangerously-skip-permissions");
+    expect(args).not.toContain("--allowedTools");
+  });
+
+  it("keeps the pre-existing first-turn/resume argument shape intact (AC-REGRESSION-1)", () => {
+    const firstTurn = buildArgs("my prompt", null, "tight");
+    expect(firstTurn[0]).toBe("-p");
+    expect(firstTurn).toEqual(
+      expect.arrayContaining(["--output-format", "stream-json", "--verbose"]),
+    );
+    expect(firstTurn).not.toContain("--resume");
+    expect(firstTurn[firstTurn.length - 1]).toBe("my prompt");
+
+    const resumed = buildArgs("my prompt", "sess-1", "tight");
+    expect(resumed).toEqual(expect.arrayContaining(["--resume", "sess-1"]));
+    expect(resumed[resumed.length - 1]).toBe("my prompt");
   });
 });
