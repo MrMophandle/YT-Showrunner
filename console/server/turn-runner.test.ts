@@ -143,6 +143,12 @@ describe("SeasonTurnRunner", () => {
     expect(prompt).toContain("Fixture Series");
     expect(prompt).toContain("Let's start breaking season 1.");
     expect(firstArgs).not.toContain("--resume");
+
+    // AC-PATH-1 / AC-SEASON-1: the first-turn prompt states the absolute
+    // canon root and the absolute resolved draft path, using the route's
+    // seasonId ("season-1") verbatim.
+    expect(prompt).toContain(canonRoot);
+    expect(prompt).toContain(path.join(canonRoot, "seasons", "season-1", "season.draft.json"));
   });
 
   it("sends only the raw user message on a resumed turn — never re-sending the bundle or skill prefix (violation-attempt)", async () => {

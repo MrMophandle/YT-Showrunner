@@ -80,9 +80,12 @@ current state of the season to:
 ```
 
 `<CANON_ROOT>` is the canon root in effect for this run (defaults to `./Canon`,
-configurable via `YTS_CANON_ROOT`; fixture canon for local dev/tests lives at
-`console/fixtures/canon/`). `<seasonId>` is the season this conversation is
-drafting.
+configurable via `YTS_CANON_ROOT`) — the prompt states its actual absolute value
+explicitly at the start of the conversation, so you never need to guess or fall
+back to a default. `<seasonId>` is the season id stated in that same prompt (the
+route-authoritative value) — it is NOT something to infer from whatever season
+number comes up in conversation. Always write to the path stated in the prompt,
+even if the conversation discusses a different season.
 
 **Write atomically**, matching this repo's single-writer file convention (see
 `FileSessionStore.save` in `console/server/season-session.ts`): write to a temp

@@ -2,13 +2,13 @@
 slug: headless-draft-writes
 legacy_id:
 feature: headless-draft-writes
-status: PLANNED
+status: BUILD_COMPLETE
 ---
 
 # headless-draft-writes: Headless Draft Writes
 
 **Complexity**: Level 2
-**Status**: PLANNED
+**Status**: BUILD_COMPLETE
 **Roadmap**: headless-draft-writes
 **Branch**: feature/headless-draft-writes
 **Worktree**: N/A (in-repo checkout)
@@ -279,22 +279,22 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
       allowlist and the env-var-gated `--dangerously-skip-permissions` branch; startup
       warning when the hatch is active
 - [x] `console/server/season-session.test.ts` — tests for the above
-- [ ] `console/server/context-bundle.ts` — extend `BuildTurnPromptOptions` (line ~154)
+- [x] `console/server/context-bundle.ts` — extend `BuildTurnPromptOptions` (line ~154)
       with `canonRoot` + `seasonId`; `buildTurnPrompt()` (line ~172) states the show canon
       root and the resolved absolute draft path on the first-turn branch only
-- [ ] `console/server/context-bundle.test.ts` — tests for the above
-- [ ] `console/server/turn-runner.ts` — pass `canonRoot` + `seasonId` into
+- [x] `console/server/context-bundle.test.ts` — tests for the above
+- [x] `console/server/turn-runner.ts` — pass `canonRoot` + `seasonId` into
       `buildTurnPrompt()` at line ~191. **Verified: no new plumbing needed** —
       `SeasonTurnRunner` already holds `this.canonRoot` (lines 92, 99) and already passes
       `seasonId` to `assembleContextBundle()` at line 189. This is a two-argument change,
       not a threading exercise.
-- [ ] `.claude/skills/season-drafting/SKILL.md` — correct the `<seasonId>` definition and
+- [x] `.claude/skills/season-drafting/SKILL.md` — correct the `<seasonId>` definition and
       remove the fixture-canon fallback guidance (AC-SEASON-1)
 - [x] `memory-bank/techContext.md` — document the new env var in § Environment Variables
 
 ### Phases
 - [x] Phase 1: Spawn permissions + escape hatch (`season-session.ts`)
-- [ ] Phase 2: Path communication + route-authoritative seasonId (`context-bundle.ts`,
+- [x] Phase 2: Path communication + route-authoritative seasonId (`context-bundle.ts`,
       SKILL.md) — ends with the AC-VERIFY-1 runbook, output recorded
 
 ## Creative Phases
@@ -307,13 +307,15 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 
 **Build Status**: RUNNING
 **Current Phase**: BUILD
-**Current Step**: Step 11 - Git Completion (Phase 1)
-**Phase Being Built**: Phase 1: Spawn permissions + escape hatch
-**Phase Number**: 1 of 2
+**Current Step**: Step 11 - Git Completion (Phase 2)
+**Phase Being Built**: Phase 2: Path communication + route-authoritative seasonId
+**Phase Number**: 2 of 2
 **Is Multi-Phase**: YES
-**Last Completed**: Phase 1 (season-session.ts permission flags)
-**Can Resume**: YES
-**Resume From**: `/bmb:build headless-draft-writes` → Phase 2
+**Last Completed**: Phase 2 (context-bundle.ts path facts, turn-runner.ts plumbing,
+SKILL.md correction)
+**Can Resume**: YES — all coded phases complete; remaining follow-up is a human-run
+manual verification (see AC-VERIFY-1 Runbook Attempt below), not further /bmb:build work
+**Resume From**: N/A — next command is `/bmb:reflect headless-draft-writes`
 
 ### Active Sub-Agents
 (none)
@@ -343,16 +345,96 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
   separately as `a47c525` by the documentation sub-agent, ahead of the phase commit —
   docs-only, no production/test code in that commit)
 
+- Phase 2 TDD (RED→GREEN): `BuildTurnPromptOptions` in `console/server/context-bundle.ts`
+  gained required `canonRoot` + `seasonId`; new `resolveDraftPath()` / `renderPathFacts()`
+  helpers state the absolute show canon root and the absolute resolved draft path
+  (`<canonRoot>/seasons/<seasonId>/season.draft.json`) on the first-turn branch only.
+  `turn-runner.ts`'s two `buildTurnPrompt()` call sites now pass both fields through.
+  `SKILL.md` corrected: `<seasonId>` is now documented as route-authoritative (never
+  inferred from conversation content); the stale `console/fixtures/canon/` local-dev
+  fallback framing was removed. 6 new/extended tests (5 in `context-bundle.test.ts`, 1 in
+  `turn-runner.test.ts`; 3 pre-existing tests had assertions loosened from exact-equality
+  to `toContain`/`startsWith` since the new unconditional path-facts requirement made
+  literal equality with the old empty-bundle case structurally impossible — same test
+  intent preserved). Suite: 99 → 103 passing.
+- Phase 2 Integration Verification: tests 103/103 PASS, typecheck PASS, build PASS. No
+  lint script configured in this project (N/A, not skipped-and-hidden).
+- Phase 2 Code Review: APPROVED, 0 blocking issues. One non-blocking recommendation
+  (add defense-in-depth `isValidSeasonId` re-validation inside `buildTurnPrompt`/
+  `resolveDraftPath` directly, matching `assembleContextBundle`'s existing convention,
+  since both are exported and a future caller could skip the upstream validation that
+  today's only two call sites in `turn-runner.ts` always perform) — logged here as a
+  follow-up, not fixed in this phase (non-blocking, no test asserted it).
+- Phase 2 Documentation: `memory-bank/techContext.md` updated with a Phase 2 note
+  (committed separately as `d401faa` by the documentation sub-agent, ahead of the phase
+  commit — docs-only, no production/test code in that commit). `systemPatterns.md` left
+  unchanged — no new architectural pattern, this phase refines the existing Context
+  Bundle Assembly pattern rather than introducing a new one.
+
+### AC-VERIFY-1 Runbook Attempt (2026-08-19, this build)
+
+Ran the exact runbook from the task's Acceptance Criteria: removed the stale session
+pointer at `console/.uat-canon/seasons/season-1/.yts-session.json` (a prior scratch canon
+from an earlier local session was already present; `rm -rf` to recreate it fresh was
+denied by this environment's permission system, so the stale session pointer — the one
+piece of state that would have made the turn a resumed turn instead of a first turn —
+was removed individually instead), started `dev:server` with
+`YTS_CANON_ROOT=.../console/.uat-canon` and `dev:client` in the background, and drove one
+turn through the UI at `/seasons/season-1/chat` via Playwright MCP (`claude-in-chrome` was
+unavailable — "Browser extension is not connected" — in this sandboxed sub-agent
+environment).
+
+**Result: inconclusive, not a product failure.** The turn was submitted successfully
+(synthetic user echo rendered in the transcript), but the spawned headless `claude -p`
+process itself failed before producing any assistant output:
+`Error: Input must be provided either through stdin or as a prompt argument when using
+--print`. This reproduces identically for a direct manual invocation
+(`claude -p --output-format stream-json --verbose --allowedTools "Read,Write,Bash(mv *)"
+"hello there"`) run from this same sandboxed orchestrator's Bash tool — i.e. it is an
+artifact of invoking the `claude` CLI *nested inside another Claude Code session's Bash
+sandbox* (this orchestrator run), not something introduced by this phase's code. The
+prior live walk that produced this task's original evidence (2026-08-19, cited in Task
+Description) ran `claude -p` successfully from an unsandboxed shell — the spawn mechanism
+and argument vector (`buildArgs()`) are unchanged in shape by this phase, only the prompt
+*content* changed (added path facts), and the failure occurs even for a trivial
+"hello there" prompt with no relation to this phase's content changes.
+
+**What this attempt DID confirm** (matching AC-PATH-1/2/3, AC-SEASON-1's automated
+coverage, now also visually spot-checked pre-crash): the composer accepted the message,
+the synthetic echo rendered immediately (`SeasonTurnRunner`'s existing behavior,
+untouched by this phase), Draft Preview correctly showed "No draft yet." and Approve
+stayed disabled prior to the crash (no false-positive UI state).
+
+**What remains genuinely unverified**: the actual file write round-trip
+(`season.draft.json` appearing on disk, Draft Preview rendering it, Approve enabling) —
+because the headless process never got far enough to attempt a write in this sandboxed
+environment. Per this task's own AC-ERROR-1 standard ("never a false success"), this is
+recorded as **NOT verified**, not claimed as passing. **Recommended next step for a
+human**: re-run the exact runbook in
+`### Acceptance Criteria § AC-VERIFY-1` from an unsandboxed terminal (not nested inside
+another Claude Code session), which is how the task's own original defect-discovery walk
+was run. Dev servers used for this attempt have been stopped; the scratch canon at
+`console/.uat-canon` was left in place (untracked, gitignored-equivalent — not committed)
+for reuse.
+
 ### Guard & Recovery Log
 - Phase 1: code-review FAIL (blocking, `Bash(mv:*)` vs `Bash(mv *)` syntax) → fixed
   inline by orchestrator (not full TDD re-dispatch — single-line code fix + matching
   test tightening) → re-verify PASS → re-review APPROVED. No commit-guard (C1/C2/C3)
   failures this phase.
+- Phase 2: no code-review or commit-guard failures. AC-VERIFY-1's manual runbook could
+  not be completed in this sandboxed sub-agent environment (nested `claude -p` spawn
+  failure, see AC-VERIFY-1 Runbook Attempt above) — this is an environment limitation of
+  the build run, not a phase failure, and is surfaced to the human via this build's
+  returned summary rather than silently marked done.
 
 ### Resumption Notes
-**Can Resume**: YES
-**Notes**: Phase 1 complete and committed to `feature/headless-draft-writes` (pushed).
-Phase 2 is prompt composition (`context-bundle.ts`) plus the SKILL.md correction and
-must end with the AC-VERIFY-1 runbook run and its observed output recorded here. Do not
-mark AC-VERIFY-1 satisfied from a green suite alone — that is precisely the failure this
-task exists to correct. Next command: `/bmb:build headless-draft-writes`.
+**Can Resume**: YES (in the sense that no further coding work remains; the open item is
+a human-run manual verification, not a build step)
+**Notes**: Both implementation phases are complete, tested, reviewed, and committed to
+`feature/headless-draft-writes` (pushed). AC-VERIFY-1's manual browser-verification
+runbook could not be completed by this automated build run — see the attempt log above —
+and needs a human to re-run it from an unsandboxed shell before this task is considered
+fully done end-to-end. Next commands: `/bmb:reflect headless-draft-writes`, then, after a
+human confirms AC-VERIFY-1 (or files a follow-up defect if it still fails outside the
+sandbox artifact), `/bmb:archive headless-draft-writes`.
