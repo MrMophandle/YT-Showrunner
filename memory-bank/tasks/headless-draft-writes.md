@@ -2,16 +2,17 @@
 slug: headless-draft-writes
 legacy_id:
 feature: headless-draft-writes
-status: BUILD_COMPLETE
+status: REFLECTION_COMPLETE
 ---
 
 # headless-draft-writes: Headless Draft Writes
 
 **Complexity**: Level 2
-**Status**: BUILD_COMPLETE
+**Status**: REFLECTION_COMPLETE
 **Roadmap**: headless-draft-writes
 **Branch**: feature/headless-draft-writes
 **Worktree**: N/A (in-repo checkout)
+**Reflection**: memory-bank/reflection/headless-draft-writes-reflection.md
 
 ## Task Description
 
@@ -305,17 +306,18 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 
 ## Execution State
 
-**Build Status**: RUNNING
-**Current Phase**: BUILD
-**Current Step**: Step 11 - Git Completion (Phase 2)
-**Phase Being Built**: Phase 2: Path communication + route-authoritative seasonId
-**Phase Number**: 2 of 2
+**Build Status**: IDLE
+**Current Phase**: REFLECT → ARCHIVE
+**Current Step**: Step 4 - Git Commit - COMPLETE
+**Phase Being Built**: N/A — both build phases complete
+**Phase Number**: 2 of 2 (complete)
 **Is Multi-Phase**: YES
-**Last Completed**: Phase 2 (context-bundle.ts path facts, turn-runner.ts plumbing,
-SKILL.md correction)
-**Can Resume**: YES — all coded phases complete; remaining follow-up is a human-run
-manual verification (see AC-VERIFY-1 Runbook Attempt below), not further /bmb:build work
-**Resume From**: N/A — next command is `/bmb:reflect headless-draft-writes`
+**Last Completed**: REFLECT — `memory-bank/reflection/headless-draft-writes-reflection.md`
+**Can Resume**: NO — reflection complete; next command is
+`/bmb:archive headless-draft-writes`. NOTE: AC-VERIFY-1 remains **NOT verified** and needs
+a human to re-run its runbook from an unsandboxed terminal (see AC-VERIFY-1 Runbook
+Attempt below and the reflection's Recommendations).
+**Resume From**: N/A
 
 ### Active Sub-Agents
 (none)
@@ -427,6 +429,24 @@ for reuse.
   failure, see AC-VERIFY-1 Runbook Attempt above) — this is an environment limitation of
   the build run, not a phase failure, and is surfaced to the human via this build's
   returned summary rather than silently marked done.
+
+### Reflection (2026-08-19)
+- Reflection Agent: COMPLETE — Output:
+  `memory-bank/reflection/headless-draft-writes-reflection.md`
+- **Task quality**: ⚠️ Partial Success — all code-level ACs (AC-PERM-1/2/3, AC-PATH-1/2/3,
+  AC-SEASON-1, AC-REGRESSION-1) met and proven by tests (89 → 103 passing, typecheck +
+  build clean); AC-VERIFY-1 — the task's headline user-facing outcome — remains
+  **unverified** pending a human re-run outside the build sandbox.
+- **Ecosystem effectiveness**: ✅ Highly Effective for the code-level work; offset by the
+  by-task session-log gap (third consecutive task) and no first-class way to represent
+  "MUST-priority AC pending human verification" distinct from `BUILD_COMPLETE`.
+- Extractable learnings captured in the reflection (2, per the Level 2 cap):
+  mock-boundary blindness in the `spawnFn`-injecting suite, and isolating nested-CLI
+  sandbox artifacts from real defects before attributing failure to code under test.
+  Consolidation into `agent-rules/_learned/` happens at `/bmb:archive`, not here.
+- Carried-forward follow-up: the deferred defense-in-depth `isValidSeasonId`
+  re-validation inside `buildTurnPrompt()`/`resolveDraftPath()` (Phase 2 code review,
+  non-blocking) — still not implemented.
 
 ### Resumption Notes
 **Can Resume**: YES (in the sense that no further coding work remains; the open item is
