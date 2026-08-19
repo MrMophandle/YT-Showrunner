@@ -9,5 +9,16 @@ memory-bank/.local/
 # Build/verify command logs (see CLAUDE.md Tool Usage Rules)
 .claude-logs/
 
+# UAT scratch canon — re-seeded from console/fixtures/canon before each run.
+# UAT mutates canon (/approve writes a season file and appends to the ledger),
+# so runs target a throwaway copy to keep the tracked fixtures pristine.
+# See memory-bank/uat-config.md § Fixtures & Data.
+console/.uat-canon/
+
+# Runtime canon artifacts, in case a run ever targets the fixtures directly.
+# Written by the season-drafting skill and SeasonSessionManager, never by hand.
+console/fixtures/canon/**/season.draft.json
+console/fixtures/canon/**/.yts-session.json
+
 # OS
 .DS_Store
