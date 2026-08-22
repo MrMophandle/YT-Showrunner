@@ -2,13 +2,14 @@
 slug: headless-draft-writes
 legacy_id:
 feature: headless-draft-writes
-status: REFLECTION_COMPLETE
+status: IN_PROGRESS
 ---
 
 # headless-draft-writes: Headless Draft Writes
 
 **Complexity**: Level 2
-**Status**: REFLECTION_COMPLETE
+**Status**: BUILD_COMPLETE (Phase 3 landed 2026-08-22 — **AC-VERIFY-1 VERIFIED PASS**, see
+§ AC-VERIFY-1 Runbook — PASS)
 **Roadmap**: headless-draft-writes
 **Branch**: feature/headless-draft-writes
 **Worktree**: N/A (in-repo checkout)
@@ -228,6 +229,83 @@ evidence — do not repeat that.**
 **Then** all 89 pre-existing tests pass unmodified, and `npm run typecheck` and
 `npm run build:client` remain clean.
 
+## Phase 3 Defects (added 2026-08-22 from a human live walk)
+
+A human ran the AC-VERIFY-1 runbook from an unsandboxed terminal. The turn failed with
+`Error: Input must be provided either through stdin or as a prompt argument when using
+--print`. **AC-VERIFY-1 therefore FAILS for a real product reason.**
+
+This also **retracts** the Phase 2 build-run conclusion (and the reflection's, which
+inherited it) that the error was an artifact of nesting `claude -p` inside a sandbox. That
+conclusion rested on a "control" invocation that itself included
+`--allowedTools "Read,Write,Bash(mv *)"` — it reproduced the bug, not the sandbox. A true
+control (`claude -p --output-format stream-json --verbose "say hi"`, no allowlist flag)
+succeeds nested inside an agent's Bash sandbox. Verified against `claude` 2.1.238.
+
+### Defect 4 — the variadic `--allowedTools` swallows the positional prompt
+
+`claude --help` documents `--allowedTools, --allowed-tools <tools...>` — **variadic**, so
+it consumes every following non-flag token. `buildArgs()` pushes the prompt last, directly
+after the allowlist value:
+
+```
+-p --output-format stream-json --verbose --allowedTools "Read,Write,Bash(mv *)" "<prompt>"
+                                                        └── both consumed as tool names ──┘
+```
+
+No positional prompt survives. Empirically confirmed (`claude` 2.1.238):
+
+| Vector | Result |
+|---|---|
+| `-p --output-format stream-json --verbose "say hi"` | works |
+| `-p … --allowedTools "Read,Write" "say hi"` | `Error: Input must be provided…` |
+| `-p … --allowedTools=Read,Write "say hi"` | works |
+| `-p … --allowedTools "Read,Write,Bash(mv *)" -- "say hi"` | works |
+
+A **Phase 1 regression** (commit `3c6364c`): before it there was no variadic flag, which is
+why the original 2026-08-19 walk got real model output about blocked writes. `--` is the
+chosen fix — it preserves the exact space-separated `Bash(mv *)` string that Phase 1's
+code review established as correct.
+
+### Defect 5 — a crashed turn persists a session pointer, poisoning every retry
+
+`SeasonSessionManager.sendMessage()` (`season-session.ts:301`) saves on
+`if (result.sessionId)` with no `crashed` check. A turn that dies in CLI argument parsing
+still emits `SessionStart` hook lines carrying a `session_id`, and `parseStreamJson` reads
+`session_id` off **any** event (`stream-parser.ts:258`). So the pointer is written even
+though the turn produced nothing.
+
+Consequence: the next turn sees `hasExistingSession` → `buildTurnPrompt()` returns the bare
+user message (no path facts, no skill prefix, per AC-PATH-3) and `buildArgs()` adds
+`--resume` against a session with no real history. **This is why the scratch canon's
+`.yts-session.json` kept reappearing after deletion, and it would silently invalidate the
+first retry even once Defect 4 is fixed.** The existing crash test
+(`season-session.test.ts:110`) passes only because its fake emits no `session_id` at all.
+
+### Why 103 green tests missed both
+
+`buildArgs()` returns an array whose *contents* are exactly what AC-PERM-1/2 assert; the
+defect is in how the real CLI *parses* that argv. Every test injects `spawnFn`, so no test
+ever hands the vector to a real parser. AC-PERM-1 passes in letter while the feature cannot
+function — a confirmed instance of this task's own reflection learning #1, not a
+hypothetical.
+
+#### AC-SPAWN-1: The prompt survives option parsing
+**Priority**: MUST
+**Given** any permission mode and any resume state
+**When** `buildArgs()` composes the vector
+**Then** the positional prompt is the last element and is immediately preceded by `--`, so
+no variadic option can consume it. A test asserts this across the tight, resumed, and
+escape-hatch shapes, so a future flag addition cannot silently re-break it.
+
+#### AC-SPAWN-2: A crashed turn persists no session pointer
+**Priority**: MUST
+**Given** a turn that crashes after emitting events carrying a `session_id` (the real
+shape of a CLI arg-parse failure, which emits `SessionStart` hook lines first)
+**When** `sendMessage()` completes
+**Then** no session pointer is written, so the next turn is a genuine first turn — full
+bundle, skill prefix, path facts — rather than a resume against a session with no history.
+
 ### Scope Boundaries
 
 **In scope**: `buildArgs()` permission flags + env-var escape hatch; conveying the show
@@ -297,6 +375,8 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 - [x] Phase 1: Spawn permissions + escape hatch (`season-session.ts`)
 - [x] Phase 2: Path communication + route-authoritative seasonId (`context-bundle.ts`,
       SKILL.md) — ends with the AC-VERIFY-1 runbook, output recorded
+- [x] Phase 3: Fix the two spawn defects Phase 1 introduced/left (AC-SPAWN-1, AC-SPAWN-2),
+      then re-run the AC-VERIFY-1 runbook for real — **AC-VERIFY-1 now PASSES**
 
 ## Creative Phases
 
@@ -308,15 +388,14 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 
 **Build Status**: IDLE
 **Current Phase**: REFLECT → ARCHIVE
-**Current Step**: Step 4 - Git Commit - COMPLETE
-**Phase Being Built**: N/A — both build phases complete
-**Phase Number**: 2 of 2 (complete)
+**Current Step**: Phase 3 complete; reflection amended with the corrected root cause
+**Phase Being Built**: N/A — all three build phases complete
+**Phase Number**: 3 of 3 (complete)
 **Is Multi-Phase**: YES
-**Last Completed**: REFLECT — `memory-bank/reflection/headless-draft-writes-reflection.md`
-**Can Resume**: NO — reflection complete; next command is
-`/bmb:archive headless-draft-writes`. NOTE: AC-VERIFY-1 remains **NOT verified** and needs
-a human to re-run its runbook from an unsandboxed terminal (see AC-VERIFY-1 Runbook
-Attempt below and the reflection's Recommendations).
+**Last Completed**: Phase 3 (AC-SPAWN-1 `--` separator, AC-SPAWN-2 crash-gated pointer
+persistence) + AC-VERIFY-1 verified PASS through the real UI
+**Can Resume**: NO — every MUST-priority AC is now met and evidenced. Next command is
+`/bmb:archive headless-draft-writes`.
 **Resume From**: N/A
 
 ### Active Sub-Agents
@@ -373,7 +452,53 @@ Attempt below and the reflection's Recommendations).
   unchanged — no new architectural pattern, this phase refines the existing Context
   Bundle Assembly pattern rather than introducing a new one.
 
-### AC-VERIFY-1 Runbook Attempt (2026-08-19, this build)
+### AC-VERIFY-1 Runbook — PASS (2026-08-22, after Phase 3)
+
+Re-run after the Phase 3 fixes, against `console/.uat-canon` with `YTS_CANON_ROOT` set,
+both dev servers up (server 8787, Vite 5173), driven through the real UI at
+`/seasons/season-1/chat` via Playwright MCP. Session pointer deleted first so the turn was
+a genuine first turn.
+
+**All three assertions met, on turn 1** (the runbook's turn 2 proved unnecessary — the
+model wrote the draft during the opening exchange):
+
+1. `console/.uat-canon/seasons/season-1/season.draft.json` **exists** — two episodes
+   ("Carrier", "Manifest"), `"seasonNumber": 1`, canon-aware loglines referencing the
+   fixture characters (Dez Okafor, Mara Voss) and the tunnel collapse from
+   `continuity-ledger.md`, with `threads` arrays naming ledger threads.
+2. Draft Preview **renders it** — heading "Draft Preview — Season 1", both episodes with
+   loglines and thread lists.
+3. Approve **is enabled** (it was `[disabled]` in the pre-turn baseline snapshot).
+
+Transcript showed `Bash` reads of canon followed by a `Write` — the tight
+`ALLOWED_TOOLS` allowlist was sufficient; the escape hatch was never needed. Diagnostics
+reported 56,478 / 200,000 tokens (28%). Evidence screenshot:
+`.claude-logs/ac-verify-1-pass-20260822.png` (not committed —
+`artifact_git_policy: ignore`).
+
+**AC-SEASON-1 confirmed live, and better than specified.** The model wrote to the route's
+`season-1` while *explicitly surfacing* the ambiguity rather than silently substituting its
+own choice: "the console has **season-1** selected, so I'm filing the draft there — but the
+bundle hands me a Season 1 summary as already-aired, and we're talking about what comes
+after it. Tell me if that's just a fixture quirk or if you meant to be drafting season 2."
+That is the route-authoritative rule holding *and* the honesty contract holding.
+
+**AC-SPAWN-2 confirmed live in both directions**: no pointer written by the crashed
+pre-fix turn; pointer written after this successful turn.
+
+**Observation, out of scope**: the client renders entirely unstyled (no CSS applied) and
+the page logs 1 console error. No AC covers styling and this task changed no client code,
+so it is recorded here as a finding for a future task rather than chased.
+
+### AC-VERIFY-1 Runbook Attempt (2026-08-19, Phase 2 build) — SUPERSEDED, CONCLUSION RETRACTED
+
+> **This section's conclusion was wrong.** It attributed the
+> `Error: Input must be provided…` failure to an artifact of nesting `claude -p` inside a
+> sandbox. The real cause was Defect 4 (variadic `--allowedTools` swallowing the positional
+> prompt) — see § Phase 3 Defects. The "control" invocation cited below carried the same
+> `--allowedTools` flag, so it reproduced the bug rather than isolating the environment. A
+> true control with no allowlist flag succeeds fine nested in a sandbox. Retained verbatim
+> below as the record of how the misdiagnosis happened.
 
 Ran the exact runbook from the task's Acceptance Criteria: removed the stale session
 pointer at `console/.uat-canon/seasons/season-1/.yts-session.json` (a prior scratch canon
@@ -433,10 +558,12 @@ for reuse.
 ### Reflection (2026-08-19)
 - Reflection Agent: COMPLETE — Output:
   `memory-bank/reflection/headless-draft-writes-reflection.md`
-- **Task quality**: ⚠️ Partial Success — all code-level ACs (AC-PERM-1/2/3, AC-PATH-1/2/3,
-  AC-SEASON-1, AC-REGRESSION-1) met and proven by tests (89 → 103 passing, typecheck +
-  build clean); AC-VERIFY-1 — the task's headline user-facing outcome — remains
-  **unverified** pending a human re-run outside the build sandbox.
+- **Task quality**: ⚠️ Partial Success *as assessed on 2026-08-19* — later superseded.
+  The reflection's AC-VERIFY-1 verdict ("unverified, environmental") was **wrong**: a human
+  live walk on 2026-08-22 proved it FAILING for a real product reason (Defect 4), which
+  Phase 3 then fixed and verified PASS. The reflection doc has been amended with the
+  corrected root cause; its learning #1 (mock-boundary blindness) was *validated* by this,
+  not invalidated.
 - **Ecosystem effectiveness**: ✅ Highly Effective for the code-level work; offset by the
   by-task session-log gap (third consecutive task) and no first-class way to represent
   "MUST-priority AC pending human verification" distinct from `BUILD_COMPLETE`.
@@ -448,13 +575,36 @@ for reuse.
   re-validation inside `buildTurnPrompt()`/`resolveDraftPath()` (Phase 2 code review,
   non-blocking) — still not implemented.
 
+### Phase 3 (2026-08-22)
+- Root cause found by systematic debugging against the real CLI (`claude` 2.1.238), not by
+  inspection: `claude --help` documents `--allowedTools <tools...>` as variadic, and a
+  four-way empirical matrix isolated the swallow (see § Phase 3 Defects).
+- TDD (RED→GREEN): 2 new tests in `season-session.test.ts` — AC-SPAWN-1 (`--` immediately
+  precedes the prompt across the tight, resumed, and escape-hatch shapes) and AC-SPAWN-2
+  (a crashed turn that *did* learn a session id persists no pointer). Both were watched
+  failing first: AC-SPAWN-1 reported `expected 'Read,Write,Bash(mv *)' to be '--'`;
+  AC-SPAWN-2 reported the pointer persisted as `sess-doomed`.
+- Fixes: `args.push("--", prompt)` in `buildArgs()`; `if (result.sessionId &&
+  !result.crashed)` in `SeasonSessionManager.sendMessage()`.
+- Design note on AC-SPAWN-2: gating on `!crashed` means a turn that crashes *after* real
+  work loses its session id and re-sends the bundle next turn. That is the cheap failure
+  direction; keeping a dead id silently breaks every retry. Documented at the call site.
+- Verification: 105/105 tests across 14 files, `typecheck` clean, `build:client` clean.
+  Pre-existing `act(...)` warnings in `SeasonChat.test.tsx` are untouched by this phase.
+- The existing crash test (`season-session.test.ts:110`) passed throughout only because its
+  fake emits no `session_id`; AC-SPAWN-2 covers the reachable case it left open.
+
 ### Resumption Notes
-**Can Resume**: YES (in the sense that no further coding work remains; the open item is
-a human-run manual verification, not a build step)
-**Notes**: Both implementation phases are complete, tested, reviewed, and committed to
-`feature/headless-draft-writes` (pushed). AC-VERIFY-1's manual browser-verification
-runbook could not be completed by this automated build run — see the attempt log above —
-and needs a human to re-run it from an unsandboxed shell before this task is considered
-fully done end-to-end. Next commands: `/bmb:reflect headless-draft-writes`, then, after a
-human confirms AC-VERIFY-1 (or files a follow-up defect if it still fails outside the
-sandbox artifact), `/bmb:archive headless-draft-writes`.
+**Can Resume**: NO — no work remains.
+**Notes**: All three phases are complete, tested, and committed to
+`feature/headless-draft-writes`. AC-VERIFY-1 is **verified PASS** with recorded evidence
+(§ AC-VERIFY-1 Runbook — PASS). Every MUST-priority AC is met. Next command:
+`/bmb:archive headless-draft-writes`.
+
+Carried-forward follow-ups for future tasks (not blockers here):
+- The deferred defense-in-depth `isValidSeasonId` re-validation inside
+  `buildTurnPrompt()`/`resolveDraftPath()` (Phase 2 code review, non-blocking).
+- The client renders unstyled with 1 console error (see the Phase 3 runbook observation).
+- Consider a smoke test that hands `buildArgs()`'s vector to the real `claude` CLI (even
+  just `--help`-level arg validation), since the whole Phase 3 defect class is invisible to
+  any test that injects `spawnFn`.

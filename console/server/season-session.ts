@@ -118,7 +118,12 @@ export function buildArgs(
   } else {
     args.push("--allowedTools", ALLOWED_TOOLS.join(","));
   }
-  args.push(prompt);
+  // `--` terminates option parsing so the positional prompt survives. Required:
+  // `--allowedTools <tools...>` is VARIADIC in the real CLI and consumes every
+  // following non-flag token, so an adjacent prompt is parsed as one more tool name
+  // and the CLI exits with "Input must be provided either through stdin or as a
+  // prompt argument when using --print" (AC-SPAWN-1, verified against claude 2.1.238).
+  args.push("--", prompt);
   return args;
 }
 
@@ -298,7 +303,14 @@ export class SeasonSessionManager {
       onEvent: options.onEvent,
     });
 
-    if (result.sessionId) {
+    // Only a turn that actually ran gets its session id persisted. A crashed turn
+    // still reports one — a CLI arg-parse failure emits SessionStart hook lines
+    // carrying a session_id, and parseStreamJson reads session_id off any event —
+    // and persisting that would make the next turn resume a session with no history,
+    // dropping the bundle/skill prefix/path facts (AC-SPAWN-2). Losing a session id
+    // after a late crash only costs one re-sent bundle; keeping a dead one silently
+    // breaks every retry.
+    if (result.sessionId && !result.crashed) {
       await this.store.save({
         seasonId,
         sessionId: result.sessionId,

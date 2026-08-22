@@ -126,6 +126,31 @@ describe("SeasonSessionManager", () => {
     const persisted = await store.load("season-3");
     expect(persisted).toBeNull();
   });
+
+  it("persists no session pointer when the turn crashed, even though the crashed output reported a session id (AC-SPAWN-2)", async () => {
+    // The real shape of a CLI argument-parse failure: SessionStart hook lines are
+    // emitted (carrying a session_id) before the CLI rejects the invocation, and
+    // parseStreamJson reads session_id off ANY event. Persisting that id makes the
+    // NEXT turn a resumed turn — `--resume` against a session with no real history,
+    // and buildTurnPrompt dropping the bundle/skill prefix/path facts — which
+    // silently poisons every retry.
+    const spawnFn = fakeSpawn({
+      stdoutLines: [line({ type: "system", subtype: "hook_started", session_id: "sess-doomed" })],
+      stderr:
+        "Error: Input must be provided either through stdin or as a prompt argument when using --print\n",
+      exitCode: 1,
+    });
+    const store = new InMemorySessionStore();
+    const manager = new SeasonSessionManager(store, spawnFn);
+
+    const result = await manager.sendMessage("season-4", "hello");
+
+    expect(result.crashed).toBe(true);
+    // The id WAS learned — this is the precondition that makes the bug reachable.
+    expect(result.sessionId).toBe("sess-doomed");
+    // ...but it must not be persisted, so the retry is a genuine first turn.
+    expect(await store.load("season-4")).toBeNull();
+  });
 });
 
 describe("isValidSeasonId", () => {
@@ -274,5 +299,23 @@ describe("buildArgs (AC-PERM-1, AC-PERM-2, AC-PERM-3)", () => {
     const resumed = buildArgs("my prompt", "sess-1", "tight");
     expect(resumed).toEqual(expect.arrayContaining(["--resume", "sess-1"]));
     expect(resumed[resumed.length - 1]).toBe("my prompt");
+  });
+
+  it("terminates option parsing with -- before the prompt so a variadic option cannot swallow it (AC-SPAWN-1)", () => {
+    // `--allowedTools, --allowed-tools <tools...>` is VARIADIC in the real CLI: it
+    // consumes every following non-flag token. A positional prompt sitting directly
+    // after the allowlist value is therefore parsed as one more tool name, leaving no
+    // prompt at all, and the CLI exits with "Input must be provided either through
+    // stdin or as a prompt argument when using --print". Verified against claude
+    // 2.1.238; `--` ends option parsing and protects the positional. Asserted across
+    // every shape so a future flag addition cannot silently re-break this.
+    for (const args of [
+      buildArgs("my prompt", null, "tight"),
+      buildArgs("my prompt", "sess-1", "tight"),
+      buildArgs("my prompt", null, "dangerously-skip-permissions"),
+    ]) {
+      expect(args[args.length - 1]).toBe("my prompt");
+      expect(args[args.length - 2]).toBe("--");
+    }
   });
 });

@@ -1,5 +1,41 @@
 # Reflection: Headless Draft Writes
 
+> ## ⚠️ AMENDMENT (2026-08-22) — read before the body below
+>
+> This reflection was written after Phase 2 and **its central conclusion about AC-VERIFY-1
+> was wrong.** It reported the AC as "unverified for an environmental reason — a sandbox
+> artifact of nesting `claude -p`." A human ran the runbook from a normal terminal the next
+> day and hit the identical error. It was a **real product defect**, not an environment
+> artifact.
+>
+> **Actual root cause**: `claude --help` documents `--allowedTools, --allowed-tools
+> <tools...>` as **variadic**. `buildArgs()` pushed the positional prompt directly after the
+> allowlist value, so the CLI parsed the prompt as one more tool name and exited with
+> `Error: Input must be provided either through stdin or as a prompt argument when using
+> --print`. A **Phase 1 regression**. A second defect compounded it: a crashed turn still
+> persisted a session pointer, silently turning every retry into a resume against a session
+> with no history.
+>
+> **Why the misdiagnosis happened** — the instructive part. The Phase 2 build agent's
+> "control" invocation was
+> `claude -p --output-format stream-json --verbose --allowedTools "Read,Write,Bash(mv *)" "hello there"`.
+> That is not a control: it carries the very flag under suspicion, so it reproduced the bug
+> and was read as exonerating the code. A real control (same command minus `--allowedTools`)
+> succeeds fine nested inside an agent's Bash sandbox. **A control that varies the suspected
+> cause is not a control**, and "it fails even for a trivial prompt" is worthless if the
+> trivial prompt travels with the same broken flag.
+>
+> Phase 3 fixed both defects under TDD and **AC-VERIFY-1 now PASSES** with recorded
+> evidence (see the task file § AC-VERIFY-1 Runbook — PASS). Final verdict: **Success**,
+> not Partial Success.
+>
+> What survives unchanged: **Extractable learning #1 was exactly right, and this is its
+> confirming instance.** `buildArgs()` returned an array whose contents matched every
+> assertion AC-PERM-1/2 makes while the resulting command could not start. A suite where
+> every test injects `spawnFn` cannot see that. Learning #2 (isolate sandbox artifacts
+> before blaming code) is *inverted* by this episode and rewritten below — the failure mode
+> in practice was the opposite: blaming the sandbox for a code defect.
+
 ## Task Slug
 headless-draft-writes
 
@@ -411,13 +447,18 @@ correct precedent) already closes the gap at its point of use; no `systemPattern
    invocation (in an environment where nested CLI spawning works) or an explicit, one-time manual
    runbook — never infer them from mock-based test coverage alone.
 
-2. **process-management** (spawning a CLI tool via `child_process` from inside an agent's own Bash
-   sandbox): Spawning `claude -p` (or any interactive/print-mode CLI) nested inside another Claude
-   Code session's own sandboxed Bash tool can fail for reasons unrelated to the calling code (e.g.
-   stdin/prompt-argument handling errors triggered purely by the sandboxing layer) — before
-   attributing such a failure to the code under test, reproduce it with a trivial, unrelated
-   invocation of the same binary from the same sandboxed context to isolate environment artifacts
-   from real defects.
+2. **debugging** (any time a failure is about to be attributed to the environment — sandbox,
+   CI, container, nesting — rather than to the code): A control invocation must remove the
+   suspected cause; if it still carries the flag/arg/config under suspicion, it reproduces the
+   bug and reads as exonerating the code. "It fails even for a trivial input" proves nothing
+   when the trivial input travels with the same suspect flag. Before blaming an environment,
+   name the single variable being isolated and verify the control actually varies it — and
+   prefer the CLI's/library's own documented arity or contract (`--help`, type signature) as
+   the first evidence, since a variadic option silently consuming the next positional argument
+   looks exactly like an environment failure from the caller's side.
+
+   *(This replaces the original, inverted version of this learning, which advised suspecting
+   the sandbox first. The actual failure mode was the reverse — see the amendment at the top.)*
 
 ### Learned Rules Applied
 
@@ -473,9 +514,10 @@ from inside a sandboxed automated build, only from a human's own terminal." That
 still-open gap, but a materially different and more tractable one than the failure mode this task
 exists to fix.
 
-**Overall Task Success**: ⚠️ Partial Success — all code-level ACs (AC-PERM-1/2/3, AC-PATH-1/2/3,
-AC-SEASON-1, AC-REGRESSION-1) are met and proven by tests; AC-VERIFY-1, the task's actual
-user-facing headline outcome, remains unverified pending a human re-run outside this sandbox.
+**Overall Task Success**: ✅ Success, as of Phase 3 (2026-08-22). Every MUST-priority AC is met,
+including AC-VERIFY-1, which is verified PASS through the real UI with recorded evidence. The
+⚠️ Partial Success verdict originally recorded here was correct *for Phase 2* but rested on a
+misdiagnosis — see the amendment at the top of this document.
 
 **Overall Workflow Effectiveness**: ✅ Highly Effective for the code-level work — clean two-phase
 build, one real defect caught by code review and fixed same-cycle, honest recording of the one
