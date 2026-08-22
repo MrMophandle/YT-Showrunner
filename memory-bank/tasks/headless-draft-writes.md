@@ -16,6 +16,8 @@ status: COMPLETE
 **Reflection**: memory-bank/reflection/headless-draft-writes-reflection.md
 **Archived**: memory-bank/archive/headless-draft-writes-archive.md
 **Completed**: 2026-08-22
+**PR Created**: YES
+**PR URL**: https://github.com/MrMophandle/YT-Showrunner/pull/5
 
 ## Task Description
 
