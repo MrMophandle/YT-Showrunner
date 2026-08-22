@@ -2,18 +2,20 @@
 slug: headless-draft-writes
 legacy_id:
 feature: headless-draft-writes
-status: IN_PROGRESS
+status: COMPLETE
 ---
 
 # headless-draft-writes: Headless Draft Writes
 
 **Complexity**: Level 2
-**Status**: BUILD_COMPLETE (Phase 3 landed 2026-08-22 — **AC-VERIFY-1 VERIFIED PASS**, see
+**Status**: COMPLETE (Phase 3 landed 2026-08-22 — **AC-VERIFY-1 VERIFIED PASS**, see
 § AC-VERIFY-1 Runbook — PASS)
 **Roadmap**: headless-draft-writes
 **Branch**: feature/headless-draft-writes
 **Worktree**: N/A (in-repo checkout)
 **Reflection**: memory-bank/reflection/headless-draft-writes-reflection.md
+**Archived**: memory-bank/archive/headless-draft-writes-archive.md
+**Completed**: 2026-08-22
 
 ## Task Description
 
@@ -387,15 +389,15 @@ authoritative; the corresponding `SKILL.md` corrections; docs for the new env va
 ## Execution State
 
 **Build Status**: IDLE
-**Current Phase**: REFLECT → ARCHIVE
-**Current Step**: Phase 3 complete; reflection amended with the corrected root cause
+**Current Phase**: COMPLETE
+**Current Step**: Archived 2026-08-22 — `memory-bank/archive/headless-draft-writes-archive.md`
 **Phase Being Built**: N/A — all three build phases complete
 **Phase Number**: 3 of 3 (complete)
 **Is Multi-Phase**: YES
-**Last Completed**: Phase 3 (AC-SPAWN-1 `--` separator, AC-SPAWN-2 crash-gated pointer
-persistence) + AC-VERIFY-1 verified PASS through the real UI
-**Can Resume**: NO — every MUST-priority AC is now met and evidenced. Next command is
-`/bmb:archive headless-draft-writes`.
+**Last Completed**: `/bmb:archive` — archive doc written, learning consolidation applied
+(`testing-patterns` promoted low → medium at evidence_count 3; `empirical-verification`
+extended with the control-invocation directive), task marked COMPLETE, PR opened
+**Can Resume**: NO
 **Resume From**: N/A
 
 ### Active Sub-Agents

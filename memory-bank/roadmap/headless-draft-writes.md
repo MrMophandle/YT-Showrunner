@@ -1,11 +1,20 @@
 ---
 version: next
-status: planned
+status: completed
 priority: critical
 complexity: 2
 linked_tasks: [headless-draft-writes]
 created: 2026-08-19
+completed: 2026-08-22
 ---
+
+> **Status: completed** (2026-08-22) — the sole linked task `headless-draft-writes` is
+> COMPLETE. All three original defects fixed, plus two more (a variadic-flag prompt swallow
+> introduced by the Phase 1 fix, and a crashed turn persisting a session pointer) found by a
+> human live walk and fixed in Phase 3. **AC-VERIFY-1 is verified PASS** through the real UI
+> with recorded evidence — `season.draft.json` written under the route's `seasonId`, Draft
+> Preview rendering it, Approve enabled. This also closes
+> `season-chat-conversation-loop`'s AC-HAPPY-4, the last broken link in the drafting loop.
 
 # Headless Draft Writes
 

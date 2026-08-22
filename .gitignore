@@ -20,5 +20,11 @@ console/.uat-canon/
 console/fixtures/canon/**/season.draft.json
 console/fixtures/canon/**/.yts-session.json
 
+# Dependencies (root-level installs; console/ has its own .gitignore)
+node_modules/
+
+# Playwright MCP scratch output
+.playwright-mcp/
+
 # OS
 .DS_Store
