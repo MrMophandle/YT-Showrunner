@@ -142,28 +142,42 @@ export function DiagnosticsPanel({ turns, pollIntervalMs = 5000, fetchFn = fetch
     contextUsage !== null && contextUsage.totalTokens / CONTEXT_WINDOW_TOKENS >= CONTEXT_WARNING_THRESHOLD_RATIO;
 
   return (
-    <section aria-label="Diagnostics" data-testid="diagnostics-panel">
-      <h3>Diagnostics</h3>
+    <section className="panel diagnostics-panel" aria-label="Diagnostics" data-testid="diagnostics-panel">
+      {/* The warning lives OUTSIDE the disclosure below, deliberately: a warning
+          you have to think to expand is not a warning. It is also the only part
+          of this panel queried by role — `getByRole("alert")` excludes elements
+          hidden from the accessibility tree, and a closed <details> hides its
+          contents from that tree in a real browser. */}
+      {warningCrossed && (
+        <p className="diagnostics-panel__warning" role="alert">
+          Context usage is nearing the conversation's limit — consider wrapping up soon.
+        </p>
+      )}
 
-      <div data-testid="context-usage">
-        <h4>Context usage</h4>
-        {contextUsage === null ? (
-          <p>No usage data yet.</p>
-        ) : (
-          <p>
-            {formatTokens(contextUsage.totalTokens)} / {formatTokens(CONTEXT_WINDOW_TOKENS)} tokens (
-            {Math.round((contextUsage.totalTokens / CONTEXT_WINDOW_TOKENS) * 100)}%)
-          </p>
-        )}
-        {warningCrossed && (
-          <p role="alert">Context usage is nearing the conversation's limit — consider wrapping up soon.</p>
-        )}
-      </div>
+      {/* Collapsed by default — this panel is consulted rarely, and the rail's
+          space belongs to Draft Preview. <summary> is the accessible name of
+          the disclosure control; the section's aria-label names the region, so
+          no separate heading is needed here. */}
+      <details className="diagnostics-panel__details">
+        <summary>Diagnostics</summary>
 
-      <div data-testid="plan-usage">
-        <h4>Plan usage</h4>
-        <PlanUsageDisplay state={planUsage} />
-      </div>
+        <div className="diagnostics-panel__group" data-testid="context-usage">
+          <h4>Context usage</h4>
+          {contextUsage === null ? (
+            <p>No usage data yet.</p>
+          ) : (
+            <p>
+              {formatTokens(contextUsage.totalTokens)} / {formatTokens(CONTEXT_WINDOW_TOKENS)} tokens (
+              {Math.round((contextUsage.totalTokens / CONTEXT_WINDOW_TOKENS) * 100)}%)
+            </p>
+          )}
+        </div>
+
+        <div className="diagnostics-panel__group" data-testid="plan-usage">
+          <h4>Plan usage</h4>
+          <PlanUsageDisplay state={planUsage} />
+        </div>
+      </details>
     </section>
   );
 }

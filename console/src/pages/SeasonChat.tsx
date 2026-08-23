@@ -127,7 +127,11 @@ export function SeasonChat({ fetchFn = fetch, eventSourceFactory = (url: string)
     contextUsage !== null && contextUsage.totalTokens / CONTEXT_WINDOW_TOKENS >= CONTEXT_WARNING_THRESHOLD_RATIO;
 
   if (!seasonId) {
-    return <p role="alert">No season selected.</p>;
+    return (
+      <p className="season-chat-empty" role="alert">
+        No season selected.
+      </p>
+    );
   }
 
   // AC-ENTRY-1: send the trimmed composer value to the turn-runner. A 202
