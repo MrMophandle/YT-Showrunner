@@ -157,6 +157,41 @@ export interface BuildTurnPromptOptions {
   /** Pre-rendered context bundle text (see `renderContextBundle`). Ignored on resumed turns. */
   contextBundleText: string;
   userMessage: string;
+  /**
+   * Absolute show-level canon root (holds `series-overview.md`, `characters/`,
+   * `continuity-ledger.md`) — NOT season-scoped. Stated on the first turn only
+   * (AC-PATH-1); ignored on resumed turns, since the resumed session already
+   * carries it (AC-PATH-3).
+   */
+  canonRoot: string;
+  /**
+   * The route's authoritative season id. Used to state the absolute resolved
+   * draft path on the first turn — verbatim, regardless of what season number
+   * the conversation itself discusses (AC-SEASON-1). Ignored on resumed turns.
+   */
+  seasonId: string;
+}
+
+/** Builds the absolute path to a season's draft file under `canonRoot`, using `seasonId` verbatim. */
+function resolveDraftPath(canonRoot: string, seasonId: string): string {
+  return path.join(canonRoot, "seasons", seasonId, "season.draft.json");
+}
+
+/**
+ * Plain-text statement of the show canon root and the resolved draft path,
+ * prepended ahead of the context bundle on the first turn only. The two facts
+ * are stated distinctly (AC-PATH-2) — the canon root is show-scoped (read
+ * canon from here), the draft path is season-scoped (write the draft here) —
+ * never merged into a single path string.
+ */
+function renderPathFacts(canonRoot: string, seasonId: string): string {
+  const draftPath = resolveDraftPath(canonRoot, seasonId);
+  return (
+    `The show canon root for this run is: ${canonRoot}\n` +
+    `This is the SHOW-level canon root (holding series-overview.md, characters/, and continuity-ledger.md) — it is NOT season-scoped.\n\n` +
+    `The season you are drafting is "${seasonId}" (authoritative — this is the season selected in the console, regardless of what season number comes up in conversation).\n` +
+    `Write and maintain the draft file at this exact absolute path: ${draftPath}`
+  );
 }
 
 /**
@@ -173,7 +208,12 @@ export function buildTurnPrompt(options: BuildTurnPromptOptions): string {
   if (options.hasExistingSession) {
     return options.userMessage;
   }
-  return options.contextBundleText.trim().length === 0
-    ? `${SEASON_DRAFTING_SKILL_COMMAND} ${options.userMessage}`
-    : `${SEASON_DRAFTING_SKILL_COMMAND} ${options.contextBundleText}\n\n---\n\n${options.userMessage}`;
+
+  const pathFacts = renderPathFacts(options.canonRoot, options.seasonId);
+  const bundleAndPathFacts =
+    options.contextBundleText.trim().length === 0
+      ? pathFacts
+      : `${pathFacts}\n\n---\n\n${options.contextBundleText}`;
+
+  return `${SEASON_DRAFTING_SKILL_COMMAND} ${bundleAndPathFacts}\n\n---\n\n${options.userMessage}`;
 }

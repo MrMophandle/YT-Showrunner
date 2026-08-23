@@ -50,12 +50,80 @@ export interface RunTurnResult extends ParsedStream {
   stderr: string;
 }
 
-function buildArgs(prompt: string, resumeSessionId?: string | null): string[] {
+/**
+ * Permission posture for the spawned `claude -p` process.
+ * - "tight" (default): an explicit `--allowedTools` allowlist — the narrowest grant
+ *   that permits the season-drafting skill to read canon and atomically write
+ *   `season.draft.json` (temp file + rename).
+ * - "dangerously-skip-permissions": opt-in escape hatch via YTS_PERMISSION_MODE.
+ */
+export type PermissionMode = "tight" | "dangerously-skip-permissions";
+
+/**
+ * The tight `--allowedTools` allowlist, passed to the CLI as a single
+ * comma-separated string arg (no documented prior-art in this repo for
+ * repeated-flag vs. comma-separated syntax, so comma-separated is chosen as
+ * the simplest form `claude -p --allowedTools` accepts).
+ *
+ * Sized for exactly what the season-drafting skill needs (see SKILL.md's
+ * "write atomically" convention, mirroring FileSessionStore.save):
+ * - `Read`   — read canon files under YTS_CANON_ROOT.
+ * - `Write`  — write the temp draft file.
+ * - `Bash(mv *)` — narrowly-scoped rename-into-place step for the atomic
+ *   write; NOT a bare `Bash` grant, so the process cannot run arbitrary
+ *   shell commands. Space-separated (not colon-separated) to match this
+ *   repo's existing Bash-permission-pattern precedent (`.claude/settings.local.json`,
+ *   e.g. `"Bash(git status *)"`, `"Bash(git diff *)"`) and the CLI's own
+ *   `--help` example (`"Bash(git *) Edit"`).
+ */
+export const ALLOWED_TOOLS: readonly string[] = ["Read", "Write", "Bash(mv *)"];
+
+/** Documented opt-in token for YTS_PERMISSION_MODE (AC-PERM-3). Any other value, unset, or empty keeps "tight". */
+const DANGEROUSLY_SKIP_PERMISSIONS_TOKEN = "dangerously-skip-permissions";
+
+/** Reads YTS_PERMISSION_MODE fresh on every call (not memoized) so tests can stub the env per-case. */
+export function resolvePermissionMode(): PermissionMode {
+  return process.env.YTS_PERMISSION_MODE === DANGEROUSLY_SKIP_PERMISSIONS_TOKEN
+    ? "dangerously-skip-permissions"
+    : "tight";
+}
+
+/** Logs a one-line startup warning naming the reduced safety posture when the escape hatch is active; no-op otherwise. */
+export function warnIfPermissionsDisabled(mode: PermissionMode): void {
+  if (mode === "dangerously-skip-permissions") {
+    console.warn(
+      "[season-session] YTS_PERMISSION_MODE=dangerously-skip-permissions is set — " +
+        "spawned `claude -p` processes will run with ALL permission checks disabled " +
+        "(reduced safety posture). Unset YTS_PERMISSION_MODE to restore the tight --allowedTools allowlist.",
+    );
+  }
+}
+
+// Resolved once at module load — this module is only ever imported by the long-lived
+// server process, not per-turn, so module-load time is process-startup time.
+const defaultPermissionMode = resolvePermissionMode();
+warnIfPermissionsDisabled(defaultPermissionMode);
+
+export function buildArgs(
+  prompt: string,
+  resumeSessionId?: string | null,
+  permissionMode: PermissionMode = defaultPermissionMode,
+): string[] {
   const args = ["-p", "--output-format", "stream-json", "--verbose"];
   if (resumeSessionId) {
     args.push("--resume", resumeSessionId);
   }
-  args.push(prompt);
+  if (permissionMode === "dangerously-skip-permissions") {
+    args.push("--dangerously-skip-permissions");
+  } else {
+    args.push("--allowedTools", ALLOWED_TOOLS.join(","));
+  }
+  // `--` terminates option parsing so the positional prompt survives. Required:
+  // `--allowedTools <tools...>` is VARIADIC in the real CLI and consumes every
+  // following non-flag token, so an adjacent prompt is parsed as one more tool name
+  // and the CLI exits with "Input must be provided either through stdin or as a
+  // prompt argument when using --print" (AC-SPAWN-1, verified against claude 2.1.238).
+  args.push("--", prompt);
   return args;
 }
 
@@ -235,7 +303,14 @@ export class SeasonSessionManager {
       onEvent: options.onEvent,
     });
 
-    if (result.sessionId) {
+    // Only a turn that actually ran gets its session id persisted. A crashed turn
+    // still reports one — a CLI arg-parse failure emits SessionStart hook lines
+    // carrying a session_id, and parseStreamJson reads session_id off any event —
+    // and persisting that would make the next turn resume a session with no history,
+    // dropping the bundle/skill prefix/path facts (AC-SPAWN-2). Losing a session id
+    // after a late crash only costs one re-sent bundle; keeping a dead one silently
+    // breaks every retry.
+    if (result.sessionId && !result.crashed) {
       await this.store.save({
         seasonId,
         sessionId: result.sessionId,

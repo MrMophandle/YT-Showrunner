@@ -3,11 +3,11 @@ name: Testing Patterns (learned)
 globs: ["**/*.test.ts", "**/*.test.tsx", "**/*route*", "**/index.ts"]
 paths: ["console/"]
 topics: ["testing", "tdd", "error-handling"]
-priority: low
+priority: medium
 auto_generated: true
-derived_from: [conversational-season-drafting, season-chat-conversation-loop]
-evidence_count: 2
-last_validated: 2026-08-18
+derived_from: [conversational-season-drafting, season-chat-conversation-loop, headless-draft-writes]
+evidence_count: 3
+last_validated: 2026-08-22
 ---
 
 # Testing Patterns (learned)
@@ -37,5 +37,21 @@ last_validated: 2026-08-18
        green suite. -->
 - Write ACs that describe behavior across a mocked boundary with this automated/manual
   split FROM THE START, rather than discovering the gap during test-writing.
+- Asserting the *contents* of an argument vector (or any payload handed to an external
+  parser) proves nothing about how that parser *consumes* it. A vector can satisfy every
+  string assertion and still produce a command that cannot start. Prefer assertions on
+  **structural defenses** — a `--` immediately before the positional argument, explicit
+  option/value adjacency — over content-only equality checks, and derive them from the
+  tool's own documented arity rather than from what the string looks like.
+  <!-- evidence: headless-draft-writes — `claude --help` documents
+       `--allowedTools <tools...>` as variadic, so it swallowed the positional prompt that
+       buildArgs() pushed directly after it. AC-PERM-1/2 asserted the exact allowlist
+       string and passed; 103 tests were green; the spawned command could not start at all
+       (`Error: Input must be provided…`). Every test injects spawnFn, so no test ever
+       handed the vector to a real parser. Fixed with `args.push("--", prompt)` plus
+       AC-SPAWN-1 asserting `--` precedes the prompt across the tight, resumed, and
+       escape-hatch shapes — a structural assertion a future flag addition cannot
+       silently re-break. This is the confirming third instance of this rule's
+       mock-boundary theme, not a hypothetical. -->
 
 See also: [[security-review]], [[integration-wiring]], [[empirical-verification]]

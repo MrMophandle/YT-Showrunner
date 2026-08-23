@@ -184,11 +184,23 @@ export class SeasonTurnRunner {
 
     let prompt: string;
     if (hasExistingSession) {
-      prompt = buildTurnPrompt({ hasExistingSession: true, contextBundleText: "", userMessage });
+      prompt = buildTurnPrompt({
+        hasExistingSession: true,
+        contextBundleText: "",
+        userMessage,
+        canonRoot: this.canonRoot,
+        seasonId,
+      });
     } else {
       const bundle = await assembleContextBundle(this.canonRoot, seasonId);
       const contextBundleText = renderContextBundle(bundle);
-      prompt = buildTurnPrompt({ hasExistingSession: false, contextBundleText, userMessage });
+      prompt = buildTurnPrompt({
+        hasExistingSession: false,
+        contextBundleText,
+        userMessage,
+        canonRoot: this.canonRoot,
+        seasonId,
+      });
     }
 
     return this.sessionManager.sendMessage(seasonId, prompt, {
