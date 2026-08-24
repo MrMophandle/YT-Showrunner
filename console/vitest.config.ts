@@ -10,7 +10,7 @@ export default defineConfig({
     // component tests fast (jsdom only when needed) — a key performance win for the test suite.
     // See systemPatterns.md for testing strategy.
     environmentMatchGlobs: [["src/**", "jsdom"]],
-    include: ["server/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.test.ts"],
+    include: ["*.test.ts", "server/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.test.ts"],
     setupFiles: ["./src/test/setup.ts"],
   },
 });
