@@ -8,8 +8,9 @@ status: IN_PROGRESS
 # client-styling: Client Styling
 
 **Complexity**: Level 2
-**Status**: BUILD_COMPLETE — every structural AC verified; **AC-VISUAL-1 awaiting the user's
-own look** (see § AC-VISUAL-1 below; a screenshot could not be captured)
+**Status**: BUILD_COMPLETE — **all ACs verified.** AC-VISUAL-1 was confirmed by the product
+owner's direct observation on 2026-08-24 (see § AC-VISUAL-1 and Execution State; no screenshot
+was captured — the evidence is the attestation, not a stored artifact)
 **Roadmap**: client-styling
 **Branch**: feature/client-styling
 **Worktree**: N/A (in-repo checkout)
@@ -163,15 +164,31 @@ AC-PANEL-2 keeps the alert outside the collapsed region. Precedent that this wor
 ## Execution State
 
 **Build Status**: IDLE
-**Current Phase**: BUILD COMPLETE → (user visual confirmation) → REFLECT/ARCHIVE
-**Current Step**: Phase 1 implemented and verified; AC-VISUAL-1 open pending the user's look
+**Current Phase**: BUILD COMPLETE → REFLECT/ARCHIVE
+**Current Step**: Phase 1 implemented and verified; **AC-VISUAL-1 CONFIRMED 2026-08-24** — all
+ACs now closed
 **Phase Being Built**: N/A — single phase complete
 **Phase Number**: 1 of 1 (complete)
 **Is Multi-Phase**: NO
-**Last Completed**: Phase 1 — stylesheet, grid shell, panel classes, Diagnostics disclosure
-**Can Resume**: NO — no implementation work remains. The one open item is a human judgment
-call (does it look right), not a build step.
-**Resume From**: N/A
+**Last Completed**: AC-VISUAL-1 confirmation by the product owner (2026-08-24)
+**Can Resume**: NO — no implementation work remains and no open ACs.
+**Resume From**: N/A — next is `/bmb:reflect client-styling` then `/bmb:archive client-styling`
+
+### AC-VISUAL-1 Confirmation (2026-08-24)
+
+The product owner opened the running console and confirmed AC-VISUAL-1. Conditions at the time
+of the look:
+
+- Both dev servers running from this checkout: Vite on `6173`, Hono on `127.0.0.1:6187`
+  (the new 61XX ports from `console-dev-ports`, which had merged to `main` as `ceb6a12`)
+- Working tree at `main` post-merge, so the stylesheet under observation is exactly what
+  shipped in PR #6
+
+**Evidence form**: direct attestation by the product owner — the intended verifier named in the
+original AC ("awaiting the user's own look"). **No screenshot was captured**, so the AC's
+literal evidence clause ("evidenced by a screenshot recorded in Execution State") is satisfied
+by observation rather than by a stored artifact. Recorded this way deliberately rather than
+claiming a screenshot exists.
 
 ### Active Sub-Agents
 (none)
