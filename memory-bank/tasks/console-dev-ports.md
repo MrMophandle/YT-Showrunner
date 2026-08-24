@@ -2,13 +2,14 @@
 slug: console-dev-ports
 legacy_id:
 feature:
-status: BUILD_COMPLETE
+status: REFLECTION_COMPLETE
 ---
 
 # console-dev-ports: Move Console Dev Ports to 61XX
 
 **Complexity**: Level 1
-**Status**: BUILD_COMPLETE
+**Status**: REFLECTION_COMPLETE
+**Reflection**: memory-bank/reflection/console-dev-ports-reflection.md
 **Roadmap**: none (Level 1 — config/docs hygiene, no product capability added)
 **Branch**: task/console-dev-ports
 **Worktree**: N/A (in-repo checkout)
@@ -159,15 +160,15 @@ from jsdom or a Node test. The meaningful checks are:
 
 ## Execution State
 
-**Build Status**: COMPLETE
-**Current Phase**: BUILD_COMPLETE
-**Current Step**: Phase 1 committed
-**Phase Being Built**: Phase 1: ports + shared constant + strictPort + live docs
+**Build Status**: IDLE
+**Current Phase**: REFLECT → ARCHIVE
+**Current Step**: Step 4 - Git Commit - COMPLETE
+**Phase Being Built**: N/A — build and reflection both complete
 **Phase Number**: 1 of 1
 **Is Multi-Phase**: NO
-**Last Completed**: Phase 1 build (TDD -> integration verification -> code review -> commit) on `task/console-dev-ports`
+**Last Completed**: Reflection (`memory-bank/reflection/console-dev-ports-reflection.md`) on `task/console-dev-ports`
 **Can Resume**: NO
-**Resume From**: N/A — all phases complete; next is `/bmb:reflect console-dev-ports` then `/bmb:archive console-dev-ports`
+**Resume From**: N/A — next is `/bmb:archive console-dev-ports`
 
 ### Active Sub-Agents
 (none)
@@ -189,6 +190,9 @@ from jsdom or a Node test. The meaningful checks are:
 - Code review (bmb:build-code-reviewer-agent): APPROVED, 0 blocking / 0 recommended / 0 optional —
   confirmed single source of truth, `strictPort: true` present, no existing test edited, no archive
   file touched, doc accuracy spot-checked across all four files
+- Rebased onto `origin/main` @ `d92bfa0` after PR #6 (`feature/client-styling`) landed —
+  `merge-tree` predicted no conflict and the rebase was clean; suite re-run post-rebase: 107/107 PASS
+- Reflection Agent: COMPLETE (2026-08-24) — Output: `memory-bank/reflection/console-dev-ports-reflection.md`
 
 ### Resumption Notes
 **Notes**: Single phase, now complete. All ACs implemented: AC-PORT-1 (client 6173, configurable),
@@ -202,9 +206,10 @@ confirming `http://localhost:6173/seasons/season-1/chat` proxies correctly, and 
 client to confirm it errors on the busy port rather than relocating. Recommended before/during
 `/bmb:reflect` or as a UAT pass.
 
-**Merge-conflict warning**: `feature/client-styling` (PR #6) and `feature/transcript-turn-grouping`
-both add new sections to `memory-bank/techContext.md`, and this task edited it too. Rebase this
-branch against `origin/main` before archiving if either of those has landed in the meantime.
+**Merge-conflict warning** (partially resolved): `feature/client-styling` (PR #6) landed as
+`d92bfa0` and this branch was rebased onto it cleanly during `/bmb:reflect` — that half is done.
+`feature/transcript-turn-grouping` also adds a section to `memory-bank/techContext.md` and has
+**not** landed yet; rebase again before archiving if it merges first.
 
 **Environment note**: as of 2026-08-24 all console processes are stopped by product-owner
 request; no dev server was started for this task's automated build (build verification used
