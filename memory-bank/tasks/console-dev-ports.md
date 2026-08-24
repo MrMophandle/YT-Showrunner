@@ -12,6 +12,7 @@ status: COMPLETE
 **Completed**: 2026-08-24
 **Reflection**: memory-bank/reflection/console-dev-ports-reflection.md
 **Archived**: memory-bank/archive/console-dev-ports-archive.md
+**PR**: https://github.com/MrMophandle/YT-Showrunner/pull/7
 **Roadmap**: none (Level 1 — config/docs hygiene, no product capability added)
 **Branch**: task/console-dev-ports
 **Worktree**: N/A (in-repo checkout)
