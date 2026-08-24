@@ -29,6 +29,32 @@ describe("computeContextUsage", () => {
     expect(result).toEqual({ totalTokens: 400, turnIndex: 1 });
   });
 
+  it("reports the SAME total whether assistant events arrive as separate turns or merged into one (AC-MERGE-2)", () => {
+    // The invariant that protects the token math across the turn-grouping
+    // change. Real usage progression from captured CLI output: each block is
+    // the FULL context for that request, not a delta, so the most recent
+    // measurement is the answer regardless of how turns are grouped.
+    const unmerged: NormalizedTurn[] = [
+      turnWithUsage({ input_tokens: 46_640 }),
+      turnWithUsage({ input_tokens: 50_277 }),
+      turnWithUsage({ input_tokens: 50_503 }),
+      turnWithUsage({ input_tokens: 51_344 }),
+    ];
+    // Merging keeps the LAST usage block, so one turn carries 51,344.
+    const merged: NormalizedTurn[] = [turnWithUsage({ input_tokens: 51_344 })];
+
+    expect(computeContextUsage(unmerged)?.totalTokens).toBe(51_344);
+    expect(computeContextUsage(merged)?.totalTokens).toBe(51_344);
+    expect(computeContextUsage(merged)?.totalTokens).toBe(computeContextUsage(unmerged)?.totalTokens);
+
+    // Guards the two wrong merge rules explicitly: summing would report
+    // 198,764 of a 200,000 window (a false near-limit warning), and
+    // first-write-wins would report a stale 46,640.
+    const summed = 46_640 + 50_277 + 50_503 + 51_344;
+    expect(computeContextUsage(merged)?.totalTokens).not.toBe(summed);
+    expect(computeContextUsage(merged)?.totalTokens).not.toBe(46_640);
+  });
+
   it("returns null when no turn carries a usage block yet", () => {
     const turns: NormalizedTurn[] = [
       { role: "user", text: "hi", thinking: "", toolCalls: [], toolResults: [], timestamp: "", messageId: "m1" },

@@ -225,6 +225,29 @@ browser, never by the suite, because jsdom applies no layout and computes no CSS
 
 ## Notable Architectural Decisions
 
+### Transcript Turn Grouping: One Turn Per Logical Exchange
+`groupIntoTurns` (`server/stream-parser.ts`) does **not** map events to turns 1:1. The CLI
+emits one event **per content block**, so a single assistant message spans several events
+sharing one `message.id`, and one exchange spans several messages across tool round-trips.
+A run of consecutive assistant events therefore merges into a single turn.
+
+Three rules in that merge are load-bearing:
+
+- **`usage` is last-write-wins.** Each block is the *full* context for its request, not an
+  increment (see `computeContextUsage`). Summing merged blocks would report ~198k of a 200k
+  window and fire a false near-limit warning; keeping the first would report a stale number.
+- **User turns never merge.** `SeasonChat` pops one pending-message entry per newly observed
+  user turn (AC-ASYNC-2). Collapsing two consecutive user messages desyncs that queue and
+  strands a queued message in the composer.
+- **`messageId`/`timestamp` keep their first values.** `SeasonChat` keys transcript rows off
+  `messageId`; adopting each merged event's id would remount the row mid-stream.
+
+A **contentless** turn is still returned rather than dropped — such an event can carry the only
+`usage` block in a stream (the CLI emits `thinking` blocks containing the empty string, and
+those events carry usage). Discarding it in the parser would destroy the context reading, so
+suppression is `TranscriptTurn`'s job: it returns `null` when text, thinking, and tool calls
+are all empty.
+
 ### Headless Process Model (No Long-Lived Child)
 Each user message spawns a fresh `claude -p --resume <sessionId>` process that runs to completion, then exits. The process lifecycle is NOT coupled to any SSE subscriber's connection state. This simplifies crash recovery (no orphaned processes) and scales linearly (no process pooling complexity in Phase 1).
 
