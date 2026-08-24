@@ -5,6 +5,22 @@
 **Total Phases**: 1
 **Duration**: 2026-08-24 (task authored, built, and rebased same day)
 
+> ### ⚠️ Addendum (2026-08-24, after archive) — the verification gap has since been closed
+>
+> This reflection was written while AC-PORT-1 (proxy) and AC-PORT-4 (`strictPort`) were
+> **implemented but unverified**, and its analysis below reflects that state. Both were
+> exercised live later the same day once the console was restarted:
+>
+> - `/api/health` through the Vite proxy on 6173 → `200 {"status":"ok"}`, identical to the
+>   backend directly on 6187
+> - A second client against the held port exited with `Error: Port 6173 is already in use`;
+>   6174 was never bound
+>
+> **All 7 ACs are now implemented AND verified.** The body of this document is left as written
+> — it is a point-in-time record, and rewriting it would falsify what was known at reflection
+> time (the same principle AC-DOCS-2 enforced for this task's own historical records). See
+> § Manual Verification Run in `memory-bank/archive/console-dev-ports-archive.md`.
+
 ## Executive Summary
 
 This task moved the console's Vite dev-client port (5173→6173) and Hono backend port

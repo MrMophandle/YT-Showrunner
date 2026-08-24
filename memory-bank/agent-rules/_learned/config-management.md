@@ -34,7 +34,8 @@ last_validated: 2026-08-24
        process served OLD CODE from the same working tree. The task correctly separated the
        cosmetic fix (renumbering out of the crowded 51XX default range) from the real one
        (`strictPort: true`); a second `npm run dev:client` on the new 6173 would otherwise
-       take 6174 and serve stale code just as happily. NOTE: this flag was never exercised
-       against a real collision — see the archive's unverified-AC list. -->
+       take 6174 and serve stale code just as happily. CONFIRMED LIVE 2026-08-24: a second
+       client against the held port exited with `Error: Port 6173 is already in use` and 6174
+       was never bound — observed behavior, not just a flag present in config. -->
 
 See also: [[integration-wiring]], [[empirical-verification]]

@@ -57,39 +57,47 @@ recurring — a second client on 6173 would take 6174 just as happily. Only the 
 | `memory-bank/productBrief.md` | Technical Constraints localhost-binding line |
 | `memory-bank/systemPatterns.md` | Architecture diagram ports |
 
-## Verification Status — read this before trusting the ports
+## Verification Status — all 7 ACs verified
 
-All 7 ACs are **implemented**; 5 are **verified**, 2 are **not**. The gap is disclosed, not
-silent: the task's own Test Strategy predicted it, and no dev server was ever started because
-all console processes were stopped by product-owner request. Build verification used
-`vite build`, not `vite dev`.
+All 7 ACs are **implemented and verified**. The two that the build could not reach were closed
+by a live manual run on **2026-08-24**, after the archive was first written (see § Manual
+Verification Run below).
 
 | AC | Implemented | Verified | Evidence |
 |---|---|---|---|
-| AC-PORT-1 — client 6173, `YTS_CLIENT_PORT` | Yes | **Partial** | Export confirmed by code review; binding never observed live |
-| AC-PORT-2 — backend 6187, `YTS_CONSOLE_PORT` | Yes | Yes | `console/ports.test.ts` |
-| AC-PORT-3 — single source of truth | Yes | Yes | `console/ports.test.ts` — the one AC with a real regression guard |
-| AC-PORT-4 — `strictPort: true` fails loudly | Yes | **No** | Flag present in config; **no collision was ever triggered** |
+| AC-PORT-1 — client 6173, `YTS_CLIENT_PORT` | Yes | Yes | Vite bound 6173 (PID 4639); `/api/health` through the proxy returned `200 {"status":"ok"}` |
+| AC-PORT-2 — backend 6187, `YTS_CONSOLE_PORT` | Yes | Yes | `console/ports.test.ts` + live startup on `127.0.0.1:6187` (PID 4539), localhost-only |
+| AC-PORT-3 — single source of truth | Yes | Yes | `console/ports.test.ts` — the one AC with a real automated regression guard |
+| AC-PORT-4 — `strictPort: true` fails loudly | Yes | Yes | Second client exited with `Error: Port 6173 is already in use`; 6174 never bound |
 | AC-DOCS-1 — four live docs current | Yes | Yes | Diff-verified + code-review spot-check |
 | AC-DOCS-2 — historical records untouched | Yes | Yes | Diff shows zero touches to `archive/**` or COMPLETE task files |
 | AC-REGRESSION-1 — zero test edits, suite green | Yes | Yes | Exactly one new test file; 107/107 |
 
-**AC-PORT-4 is the task's own highest-value item** ("the item that removes a real class of
-wasted debugging") and it is the one with zero runtime evidence — only static confirmation that
-the flag is present. A typo, or a Vite version whose `strictPort` default behavior differs,
-would pass everything in this build.
+### Manual Verification Run (2026-08-24, post-archive)
 
-**Two manual checks remain open** (from the Test Strategy):
-1. Start both servers, load `http://localhost:6173/seasons/season-1/chat`, confirm `/api`
-   proxies (Draft Preview populating is sufficient proof).
-2. Start a second client while the first runs; confirm it **errors** rather than taking 6174.
+The automated gate could not exercise either the dev-server proxy or `strictPort` — it used
+`vite build`, not `vite dev`, and all console processes had been stopped by product-owner
+request. Both were closed once the console was restarted:
+
+| Check | Command | Result |
+|---|---|---|
+| Backend binds 6187, localhost-only | `npm run dev:server` | `YTS console server listening on http://127.0.0.1:6187 (localhost only)`; `lsof` confirms `127.0.0.1:6187 (LISTEN)`, PID 4539 |
+| Client binds 6173 | `npm run dev:client` | `VITE v6.4.3 ready in 118 ms` → `http://localhost:6173/`, PID 4639 |
+| `/api` proxies through the client | `fetch('http://localhost:6173/api/health')` | `200 OK` / `{"status":"ok"}` — identical to `127.0.0.1:6187` directly, confirming the proxy target resolves from the shared constant |
+| **Busy port fails loudly** | second `npm run dev:client` while the first held 6173 | **`error when starting dev server: Error: Port 6173 is already in use`**, process exited. `lsof` confirms **6174 was never bound** and PID 4639 still held 6173 |
+
+The last row is the one that matters: it is the task's own highest-value item ("the item that
+removes a real class of wasted debugging"), and it now rests on observed behavior rather than
+on static confirmation that the flag is present in a config file.
 
 ## Quality Gates
 
 - Tests: **107/107 passing**, 15 files — re-run after the rebase, not just at build time
 - Build: PASS · Typecheck: PASS · Lint: not configured (n/a)
 - Code review: **APPROVED** — 0 blocking / 0 recommended / 0 optional
-- Security review: PASS (no user input; localhost-only binding preserved)
+- Security review: PASS (no user input; localhost-only binding preserved — reconfirmed live:
+  the backend bound `127.0.0.1`, not `0.0.0.0`)
+- Manual verification: **complete** — proxy and `strictPort` both exercised live (see above)
 - Test edits to existing files: **zero**, as AC-REGRESSION-1 required
 
 ## Notes

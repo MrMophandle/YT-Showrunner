@@ -203,17 +203,24 @@ AC-PORT-2 (backend 6187), AC-PORT-3 (single shared literal in `console/ports.ts`
 (`strictPort: true`), AC-DOCS-1 (four live docs updated), AC-DOCS-2 (archives/COMPLETE tasks
 untouched), AC-REGRESSION-1 (zero test edits, full suite green).
 
-**Manual verification still open** (per the task's Test Strategy — not part of the automated gate,
-and console processes were kept stopped per the environment note below): starting both servers and
-confirming `http://localhost:6173/seasons/season-1/chat` proxies correctly, and starting a second
-client to confirm it errors on the busy port rather than relocating. Recommended before/during
-`/bmb:reflect` or as a UAT pass.
+**Manual verification COMPLETE** (2026-08-24, after the archive commit). Both checks from the
+Test Strategy were run live once the console was restarted:
+- Backend bound `127.0.0.1:6187` (localhost-only, PID 4539); client bound `6173` (PID 4639)
+- `/api/health` through the Vite proxy on 6173 returned `200 {"status":"ok"}`, identical to the
+  backend directly on 6187 — AC-PORT-1 proxy half confirmed
+- A second `npm run dev:client` against the held port exited with
+  `Error: Port 6173 is already in use`; 6174 was never bound and PID 4639 kept 6173 —
+  **AC-PORT-4 confirmed by observed behavior**, not by static inspection of the flag
+
+All 7 ACs are now implemented AND verified. See § Manual Verification Run in
+`memory-bank/archive/console-dev-ports-archive.md`.
 
 **Merge-conflict warning** (partially resolved): `feature/client-styling` (PR #6) landed as
 `d92bfa0` and this branch was rebased onto it cleanly during `/bmb:reflect` — that half is done.
 `feature/transcript-turn-grouping` also adds a section to `memory-bank/techContext.md` and has
 **not** landed yet; rebase again before archiving if it merges first.
 
-**Environment note**: as of 2026-08-24 all console processes are stopped by product-owner
-request; no dev server was started for this task's automated build (build verification used
-`vite build`, not `vite dev`).
+**Environment note**: no dev server was started for this task's automated build — console
+processes were stopped by product-owner request at the time, so build verification used
+`vite build`, not `vite dev`. The console was restarted later the same day (again at the product
+owner's request), which is what made the two manual checks above possible.
