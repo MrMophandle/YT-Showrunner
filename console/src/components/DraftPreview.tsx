@@ -50,23 +50,23 @@ export function DraftPreview({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
 
   if (!draft) {
     return (
-      <section data-testid="draft-preview" aria-label="Draft Preview">
+      <section className="panel draft-preview" data-testid="draft-preview" aria-label="Draft Preview">
         <h3>Draft Preview</h3>
-        <p>No draft yet.</p>
+        <p className="draft-preview__empty">No draft yet.</p>
       </section>
     );
   }
 
   return (
-    <section data-testid="draft-preview" aria-label="Draft Preview">
+    <section className="panel draft-preview" data-testid="draft-preview" aria-label="Draft Preview">
       <h3>Draft Preview — Season {draft.seasonNumber}</h3>
-      <ul>
+      <ul className="draft-preview__episodes">
         {draft.episodes.map((episode, index) => (
-          <li key={`${episode.title}-${index}`}>
-            <strong>{episode.title}</strong>
-            <p>{episode.logline}</p>
+          <li className="draft-preview__episode" key={`${episode.title}-${index}`}>
+            <strong className="draft-preview__title">{episode.title}</strong>
+            <p className="draft-preview__logline">{episode.logline}</p>
             {episode.threads.length > 0 && (
-              <ul aria-label="Threads">
+              <ul className="draft-preview__threads" aria-label="Threads">
                 {episode.threads.map((thread) => (
                   <li key={thread}>{thread}</li>
                 ))}

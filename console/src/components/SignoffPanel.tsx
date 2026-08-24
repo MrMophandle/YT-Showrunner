@@ -111,7 +111,7 @@ export function SignoffPanel({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
   };
 
   return (
-    <section aria-label="Signoff" data-testid="signoff-panel">
+    <section className="panel signoff-panel" aria-label="Signoff" data-testid="signoff-panel">
       <h3>Signoff</h3>
       <button type="button" disabled={!canApprove} onClick={() => void handleApprove()}>
         Approve
@@ -122,14 +122,21 @@ export function SignoffPanel({ seasonId, pollIntervalMs = 1000, fetchFn = fetch 
         </p>
       )}
 
-      <label htmlFor="signoff-panel-notes">Notes</label>
+      <label className="signoff-panel__notes-label" htmlFor="signoff-panel-notes">
+        Notes
+      </label>
       <textarea
         id="signoff-panel-notes"
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
         placeholder="What should change?"
       />
-      <button type="button" disabled={!canReject} onClick={() => void handleReject()}>
+      <button
+        className="signoff-panel__reject"
+        type="button"
+        disabled={!canReject}
+        onClick={() => void handleReject()}
+      >
         Reject with notes
       </button>
       {rejectSubmitted && <p role="status">Notes sent — see the transcript for the response.</p>}

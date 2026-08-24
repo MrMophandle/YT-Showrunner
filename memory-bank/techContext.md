@@ -13,6 +13,9 @@
 - **React**: 18.3.1 — UI framework for Season Chat view and draft preview panel (Phase 3+)
 - **react-router-dom**: 6.28.0 — client-side routing (Phase 3+). **SECURITY DEFERRAL**: Contains two moderate advisories (GHSA-wrjc-x8rr-h8h6 open-redirect, GHSA-337j-9hxr-rhxg SSR-hydration constructor-injection) with no non-breaking fix in the 6.x line. Non-exploitable today (client-only SPA, no SSR, no user-controlled redirect target) but tracked for a future 7.x major-version bump once a redirect-accepting surface is added.
 - **Vite**: 6.0.5 — frontend build tool and dev server (Phase 3+)
+- **Styling**: plain hand-written CSS, **no framework and no dependency**. A single stylesheet
+  (`console/src/styles.css`) imported once from `src/main.tsx`; Vite handles it natively, so
+  there is no PostCSS/Tailwind build config. See § Styling Conventions below.
 
 ### Development Tools
 - **tsx**: 4.19.2 — TypeScript executor for dev server (watches and rebuilds on file changes)
@@ -187,6 +190,37 @@ npm test              # Single run (CI)
 npm test:watch       # Watch mode (dev)
 npm run typecheck    # Parallel type-check
 ```
+
+## Styling Conventions
+
+One stylesheet: `console/src/styles.css`, imported once from `src/main.tsx`. Zero styling
+dependencies. Read the header comment in that file before extending it.
+
+**Rules that are load-bearing, not stylistic:**
+
+1. **Every color comes from a CSS custom property on `:root`.** The base `:root` block is the
+   **dark** palette (this is a console you stare at for hours); a
+   `@media (prefers-color-scheme: light)` block reassigns the same token *names*. A hardcoded
+   color in a rule therefore silently ignores the light theme. `color-scheme` is declared in
+   both branches so native form controls and scrollbars follow the theme.
+2. **BEM class names** — `block`, `block__element`, `block--modifier` — continuing the
+   convention `SeasonChat.tsx` and `TranscriptTurn.tsx` already used. The three rail panels
+   share a `.panel` base class for framing and add their own block for content.
+3. **`minmax(0, 1fr)`, never bare `1fr`, on the shell's grid column.** A bare `1fr` track will
+   not shrink below its content's min-content width, so a single long unbroken string (a
+   tool-call argument, a long logline) pushes the column past the viewport and gives the
+   document a horizontal scrollbar.
+4. **`min-height: 0` on any grid item that scrolls** (`.season-chat__transcript`,
+   `.season-chat__panels`). Same underlying rule as #3: without it the region never scrolls —
+   the whole document does, and the pinned composer drifts off-screen.
+5. **Never put a `role="alert"` inside a collapsed `<details>`.** `getByRole` (and real
+   assistive tech) excludes elements hidden from the accessibility tree, so a buried alert is
+   both untestable and useless. `DiagnosticsPanel` keeps its context warning outside the
+   disclosure for exactly this reason.
+
+**No test asserts on any class name** — 0 of 105. That is deliberate and worth preserving: it
+is what keeps restyling cheap. Style-related ACs are verified by computed layout in a real
+browser, never by the suite, because jsdom applies no layout and computes no CSS.
 
 ## Notable Architectural Decisions
 
