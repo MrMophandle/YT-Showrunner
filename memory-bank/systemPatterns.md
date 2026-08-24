@@ -12,7 +12,7 @@
                   [API Proxy via Vite]
                          │
 ┌────────────────────────▼────────────────────────────────────────┐
-│ Hono Backend (127.0.0.1:8787, localhost only)                   │
+│ Hono Backend (127.0.0.1:6187, localhost only)                   │
 │                                                                   │
 │  index.ts                                                        │
 │  ├─ /api/health → { status: "ok" }                             │

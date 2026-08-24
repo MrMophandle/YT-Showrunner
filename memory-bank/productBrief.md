@@ -207,7 +207,7 @@ Core capabilities this product provides:
 - **Node.js runtime**: Requires Node.js 22+ for runtime compatibility
 - **TypeScript strict mode**: All production code must pass TypeScript strict type checking
 - **Single-process model**: Headless `claude -p` spawns per turn; no process pooling in Phase 1
-- **Localhost-only binding**: Server binds to `127.0.0.1:8787` exclusively; no external network exposure
+- **Localhost-only binding**: Server binds to `127.0.0.1:6187` exclusively; no external network exposure
 
 ### Assumptions
 

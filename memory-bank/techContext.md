@@ -26,7 +26,7 @@
 - **TypeScript compiler (tsc)**: 5.7.2 — type checking via `npm run typecheck`
 
 ### Infrastructure & Local Development
-- **Console Server Port**: Configurable via `YTS_CONSOLE_PORT` env var (default 8787). Server binds to `127.0.0.1` only — this is a single-user local tool with no external network exposure.
+- **Console Server Port**: Configurable via `YTS_CONSOLE_PORT` env var (default 6187). Server binds to `127.0.0.1` only — this is a single-user local tool with no external network exposure.
 - **Canon Root**: Configurable via `YTS_CANON_ROOT` env var (default `./Canon`). Base directory for persistent session pointer storage.
 - **Headless Claude**: Spawned via `claude -p --output-format stream-json` — integrated via season-session.ts, not a direct dependency
 
@@ -133,7 +133,8 @@ interface SeasonDraft {
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `YTS_CONSOLE_PORT` | 8787 | Port the Hono backend binds to (always `127.0.0.1`, localhost only) |
+| `YTS_CONSOLE_PORT` | 6187 | Port the Hono backend binds to (always `127.0.0.1`, localhost only) |
+| `YTS_CLIENT_PORT` | 6173 | Port the Vite dev client binds to |
 | `YTS_CANON_ROOT` | `./Canon` | Base directory where season session pointers and drafts are persisted |
 | `YTS_PERMISSION_MODE` | (unset) | Permission posture for the spawned `claude -p` season-turn process. Unset/empty/any value other than `dangerously-skip-permissions` uses a tight `--allowedTools` allowlist (`Read`, `Write`, `Bash(mv *)`); setting it to the literal string `dangerously-skip-permissions` swaps in `--dangerously-skip-permissions` instead and logs a startup warning naming the reduced safety posture. |
 | `NODE_ENV` | (unset) | When `test`, skips server startup on `npm run dev:server` |
@@ -145,16 +146,16 @@ Run all commands from the `console/` directory.
 | Command | Purpose |
 |---------|---------|
 | `npm install` | Install dependencies (Hono, React, dev tooling) |
-| `npm run dev:server` | Start Hono backend dev server with tsx watch on port 8787 (rebuilds on file changes) |
-| `npm run dev:client` | Start Vite frontend dev server (default port 5173); proxies `/api` to backend via Vite config |
+| `npm run dev:server` | Start Hono backend dev server with tsx watch on port 6187 (rebuilds on file changes) |
+| `npm run dev:client` | Start Vite frontend dev server (default port 6173); proxies `/api` to backend via Vite config |
 | `npm run build:client` | Build React app for production (outputs to `dist/`) |
 | `npm test` | Run Vitest once (CI mode) — runs all tests (server + client) with appropriate environments |
 | `npm test:watch` | Run Vitest in watch mode (for active development) |
 | `npm run typecheck` | Type-check all `.ts` and `.tsx` files without emitting output |
 
-**Server startup output**: `YTS console server listening on http://127.0.0.1:8787 (localhost only)`
+**Server startup output**: `YTS console server listening on http://127.0.0.1:6187 (localhost only)`
 
-**Phase 3+ Development Workflow**: Start both `npm run dev:server` and `npm run dev:client` in separate terminals; browser opens to http://localhost:5173 with `/api` proxied to the backend. Use route `/seasons/:seasonId/chat` (e.g., http://localhost:5173/seasons/season-1/chat) to access Season Chat.
+**Phase 3+ Development Workflow**: Start both `npm run dev:server` and `npm run dev:client` in separate terminals; browser opens to http://localhost:6173 with `/api` proxied to the backend. Use route `/seasons/:seasonId/chat` (e.g., http://localhost:6173/seasons/season-1/chat) to access Season Chat.
 
 ## Test Strategy
 

@@ -13,15 +13,15 @@ This file is created and maintained by `/bmb:uat-init`. It carries project-speci
 
 | Name     | Base URL                | Default |
 |----------|-------------------------|---------|
-| dev      | http://localhost:5173   | yes     |
+| dev      | http://localhost:6173   | yes     |
 
 > `/bmb:uat` refuses to run against environments where `name == "prod"`. There is no override flag — production UAT must be intentionally invoked via a separate (future) command.
 
 **No staging or remote environment exists.** YTS is a single-user local tool: the Hono
 backend binds `127.0.0.1` only and has no external network exposure
 (`techContext.md` § Runtime Environment). The dev URL above is the Vite client
-(default port 5173), which proxies `/api` to the backend on `YTS_CONSOLE_PORT`
-(default 8787).
+(default port 6173), which proxies `/api` to the backend on `YTS_CONSOLE_PORT`
+(default 6187).
 
 **Both processes must be running before a UAT walk:**
 
@@ -30,7 +30,7 @@ YTS_CANON_ROOT=console/.uat-canon npm run dev:server --prefix console
 npm run dev:client --prefix console
 ```
 
-Entry route: `/seasons/<seasonId>/chat` — e.g. `http://localhost:5173/seasons/season-1/chat`.
+Entry route: `/seasons/<seasonId>/chat` — e.g. `http://localhost:6173/seasons/season-1/chat`.
 Any other path redirects to `season-1` (`console/src/App.tsx:10`); there is no season
 list or picker yet.
 

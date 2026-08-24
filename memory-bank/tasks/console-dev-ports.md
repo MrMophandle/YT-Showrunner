@@ -2,13 +2,13 @@
 slug: console-dev-ports
 legacy_id:
 feature:
-status: IN_PROGRESS
+status: BUILD_COMPLETE
 ---
 
 # console-dev-ports: Move Console Dev Ports to 61XX
 
 **Complexity**: Level 1
-**Status**: PLANNED
+**Status**: BUILD_COMPLETE
 **Roadmap**: none (Level 1 — config/docs hygiene, no product capability added)
 **Branch**: task/console-dev-ports
 **Worktree**: N/A (in-repo checkout)
@@ -138,35 +138,36 @@ from jsdom or a Node test. The meaningful checks are:
 ## Implementation Roadmap
 
 ### New Source Files
-- [ ] `console/ports.ts` — shared default port constants (AC-PORT-3)
+- [x] `console/ports.ts` — shared default port constants (AC-PORT-3)
 
 ### Extended Source Files
-- [ ] `console/vite.config.ts` — port from `YTS_CLIENT_PORT` (default 6173), `strictPort: true`,
+- [x] `console/vite.config.ts` — port from `YTS_CLIENT_PORT` (default 6173), `strictPort: true`,
       proxy target from the shared constant; update the header comment's stated ports
-- [ ] `console/server/index.ts` — default from the shared constant; update the header comment
-- [ ] `memory-bank/uat-config.md`, `techContext.md`, `productBrief.md`, `systemPatterns.md` —
+- [x] `console/server/index.ts` — default from the shared constant; update the header comment
+- [x] `memory-bank/uat-config.md`, `techContext.md`, `productBrief.md`, `systemPatterns.md` —
       AC-DOCS-1
 
 ### Explicitly unchanged
-- `memory-bank/archive/**` and all COMPLETE task files — AC-DOCS-2
-- Every `*.test.ts` / `*.test.tsx` — AC-REGRESSION-1
+- `memory-bank/archive/**` and all COMPLETE task files — AC-DOCS-2 (confirmed untouched)
+- Every `*.test.ts` / `*.test.tsx` — AC-REGRESSION-1 (confirmed: only the new `console/ports.test.ts`
+  was added; zero existing test files edited)
 
 ### Phases
-- [ ] Phase 1: ports + shared constant + strictPort + live docs (single phase — a half-applied
+- [x] Phase 1: ports + shared constant + strictPort + live docs (single phase — a half-applied
       port change leaves the proxy pointing at the wrong service, which is worse than either
       end state)
 
 ## Execution State
 
-**Build Status**: IDLE
-**Current Phase**: PLANNED → BUILD
-**Current Step**: Task authored; ready for implementation
-**Phase Being Built**: N/A
-**Phase Number**: 0 of 1
+**Build Status**: COMPLETE
+**Current Phase**: BUILD_COMPLETE
+**Current Step**: Phase 1 committed
+**Phase Being Built**: Phase 1: ports + shared constant + strictPort + live docs
+**Phase Number**: 1 of 1
 **Is Multi-Phase**: NO
-**Last Completed**: Task authored on `task/console-dev-ports` (cut off `origin/main`)
-**Can Resume**: YES
-**Resume From**: Phase 1
+**Last Completed**: Phase 1 build (TDD -> integration verification -> code review -> commit) on `task/console-dev-ports`
+**Can Resume**: NO
+**Resume From**: N/A — all phases complete; next is `/bmb:reflect console-dev-ports` then `/bmb:archive console-dev-ports`
 
 ### Active Sub-Agents
 (none)
@@ -178,16 +179,33 @@ from jsdom or a Node test. The meaningful checks are:
 - Confirmed 6100 / 6173 / 6187 are free on this machine
 - Confirmed neither `strictPort` nor `YTS_CLIENT_PORT` exists today
 - Identified the duplicated `?? 8787` default across `vite.config.ts` and `server/index.ts`
+- TDD Agent: added `console/ports.ts` (`DEFAULT_CONSOLE_PORT = 6187`) + `console/ports.test.ts`
+  (RED->GREEN), wired `console/vite.config.ts` (`YTS_CLIENT_PORT` default 6173, `strictPort: true`,
+  proxy target from the shared constant) and `console/server/index.ts` (`PORT` from the shared
+  constant), added `*.test.ts` to `console/vitest.config.ts` `include` so the new root-level test
+  is discovered, and updated all four live docs per AC-DOCS-1
+- Integration verification (bmb:build-verifier-agent): tests 107/107 PASS, build PASS, typecheck
+  PASS, lint not configured (n/a)
+- Code review (bmb:build-code-reviewer-agent): APPROVED, 0 blocking / 0 recommended / 0 optional —
+  confirmed single source of truth, `strictPort: true` present, no existing test edited, no archive
+  file touched, doc accuracy spot-checked across all four files
 
 ### Resumption Notes
-**Notes**: Single phase. The highest-value item is AC-PORT-4 (`strictPort`), not the
-renumbering — renumbering relocates the collision, `strictPort` makes it visible.
+**Notes**: Single phase, now complete. All ACs implemented: AC-PORT-1 (client 6173, configurable),
+AC-PORT-2 (backend 6187), AC-PORT-3 (single shared literal in `console/ports.ts`), AC-PORT-4
+(`strictPort: true`), AC-DOCS-1 (four live docs updated), AC-DOCS-2 (archives/COMPLETE tasks
+untouched), AC-REGRESSION-1 (zero test edits, full suite green).
+
+**Manual verification still open** (per the task's Test Strategy — not part of the automated gate,
+and console processes were kept stopped per the environment note below): starting both servers and
+confirming `http://localhost:6173/seasons/season-1/chat` proxies correctly, and starting a second
+client to confirm it errors on the busy port rather than relocating. Recommended before/during
+`/bmb:reflect` or as a UAT pass.
 
 **Merge-conflict warning**: `feature/client-styling` (PR #6) and `feature/transcript-turn-grouping`
-both add new sections to `memory-bank/techContext.md`, and this task edits it too. All three are
-additive section inserts, so conflicts should be mechanical — but **land PR #6 first and rebase
-this branch** rather than resolving a three-way conflict. This branch was deliberately cut off
-`origin/main` (not stacked) because the port change is functionally independent of both.
+both add new sections to `memory-bank/techContext.md`, and this task edited it too. Rebase this
+branch against `origin/main` before archiving if either of those has landed in the meantime.
 
 **Environment note**: as of 2026-08-24 all console processes are stopped by product-owner
-request; do not start a dev server for this task without clearing it first.
+request; no dev server was started for this task's automated build (build verification used
+`vite build`, not `vite dev`).

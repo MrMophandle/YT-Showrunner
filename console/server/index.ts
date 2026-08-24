@@ -8,7 +8,7 @@
  * expose an external interface).
  *
  * Route/port choices here are Phase 1 proposals per the task spec (MEDIUM
- * confidence), not inherited conventions: Hono on port 8787, client (a later
+ * confidence), not inherited conventions: Hono on port 6187, client (a later
  * phase's Vite dev server) proxying `/api` to it.
  */
 
@@ -16,13 +16,14 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { commitDraftToCanon } from "./canon-commit.js";
 import { DraftWatcher } from "./draft-watcher.js";
+import { DEFAULT_CONSOLE_PORT } from "../ports.js";
 import { FileSessionStore, isValidSeasonId, SeasonSessionManager, type SpawnFn } from "./season-session.js";
 import { formatSseMessage, SeasonEventBus } from "./sse.js";
 import { readStatuslineSnapshot } from "./statusline-probe.js";
 import { SeasonTurnRunner } from "./turn-runner.js";
 
 const HOST = "127.0.0.1";
-const PORT = Number(process.env.YTS_CONSOLE_PORT ?? 8787);
+export const PORT = Number(process.env.YTS_CONSOLE_PORT ?? DEFAULT_CONSOLE_PORT);
 const CANON_ROOT = process.env.YTS_CANON_ROOT ?? "./Canon";
 
 export interface CreateAppOptions {
