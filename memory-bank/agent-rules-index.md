@@ -1,30 +1,30 @@
 # Agent Rules Index
 
-Generated: 2026-08-22
-Indexed: 5 rules (0 human-authored, 5 learned) | Rejected: 0 (unsafe) | Warnings: 1
+Generated: 2026-08-24
+Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings: 1
 
 ## Validation Summary
 
 ### Health Check
-- Total rules: 5
+- Total rules: 6
 - Human-authored rules: 0
-- Learned rules (auto-generated): 5
-- Estimated max context: ~201 lines (OK)
+- Learned rules (auto-generated): 6
+- Estimated max context: ~241 lines (OK)
 - Conflicts detected: 0
-- Learned-rule file cap: 5 / 10 (OK)
+- Learned-rule file cap: 6 / 10 (OK)
 
 ### ⚠️ Warnings
 
-1. **`testing-patterns.md` promoted to `medium`** this cycle (`evidence_count` 2 → 3, the
-   promotion threshold). It is the first rule on this project to leave `low`, so it now
-   outranks the four remaining `low` learned rules on conflict. No conflict currently
-   exists — flagged because the precedence change is silent otherwise.
+1. **`testing-patterns.md` promoted to `medium`** (`evidence_count` 2 → 3, the promotion
+   threshold, during the `headless-draft-writes` cycle). It is the first rule on this project
+   to leave `low`, so it outranks the five remaining `low` learned rules on conflict. No
+   conflict currently exists — flagged because the precedence change is silent otherwise.
 
-Two rules (`process-hygiene`, `empirical-verification`) carry the universal `**/*` glob.
-`empirical-verification` grew from 36 → 54 lines this cycle (it absorbed the
-control-invocation learning rather than spawning a sixth file), so combined always-on
-context is now ~80 lines — still modest, but this is the file to watch. A third `**/*`
-rule should be resisted in favor of folding into one of these two.
+Two rules (`process-hygiene`, `empirical-verification`) carry the universal `**/*` glob,
+combining to ~80 lines of always-on context — still modest, but this is what to watch. A
+third `**/*` rule should be resisted in favor of folding into one of these two. This cycle's
+new rule (`config-management`) deliberately took narrow globs rather than `**/*`, so the
+always-on total is unchanged.
 
 ### 🚫 Rejected Rules (Unsafe)
 None.
@@ -47,6 +47,9 @@ None.
 | `**/server/**` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
 | `**/*.test.ts` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
 | `**/*.test.tsx` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
+| `**/*.config.ts` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
+| `**/*.config.js` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
+| `**/server/**` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
 
 ## Rules by Path
 
@@ -55,6 +58,7 @@ None.
 | `console/server/` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
 | `console/` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
 | `console/` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
+| `console/` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
 
 ## Rules by Topic
 
@@ -65,6 +69,7 @@ None.
 | process, sub-agents, git | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low |
 | integration, wiring, dead-code, completion-criteria | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low |
 | research, external-apis, external-tools, design, assumptions, debugging, attribution | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | low |
+| config, defaults, 12-factor, dev-server | [config-management.md](agent-rules/_learned/config-management.md) | low |
 
 ---
 
@@ -77,8 +82,18 @@ None.
 | [security-review.md](agent-rules/_learned/security-review.md) | conversational-season-drafting | 1 | 2026-08-13 |
 | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | conversational-season-drafting | 1 | 2026-08-13 |
 | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | season-chat-conversation-loop | 1 | 2026-08-18 |
+| [config-management.md](agent-rules/_learned/config-management.md) | console-dev-ports | 1 | 2026-08-24 |
 
-**Changes this cycle (`headless-draft-writes`):**
+**Changes this cycle (`console-dev-ports`):**
+- `config-management.md` — **new file, purely additive.** Two bullets: (1) duplicated
+  env-configurable defaults across files must collapse to one shared constant, because a
+  drifted duplicate fails silently rather than loudly; (2) dev servers that silently rebind on
+  port collision need their fail-fast flag set, since renumbering does not remove that class of
+  bug. Took narrow globs (`**/*.config.*`, `**/server/**`) rather than `**/*` per the standing
+  warning above. Nothing was merged, retired, expired, or pruned this cycle; no rule crossed
+  the promotion threshold.
+
+**Changes in the `headless-draft-writes` cycle:**
 - `testing-patterns.md` — **promoted `low` → `medium`** (evidence_count 3 ≥ threshold). One
   bullet appended: an argument vector satisfying every content assertion can still be
   unparseable by the real tool; assert structural defenses (`--` before the positional)

@@ -2,14 +2,16 @@
 slug: console-dev-ports
 legacy_id:
 feature:
-status: REFLECTION_COMPLETE
+status: COMPLETE
 ---
 
 # console-dev-ports: Move Console Dev Ports to 61XX
 
 **Complexity**: Level 1
-**Status**: REFLECTION_COMPLETE
+**Status**: COMPLETE
+**Completed**: 2026-08-24
 **Reflection**: memory-bank/reflection/console-dev-ports-reflection.md
+**Archived**: memory-bank/archive/console-dev-ports-archive.md
 **Roadmap**: none (Level 1 — config/docs hygiene, no product capability added)
 **Branch**: task/console-dev-ports
 **Worktree**: N/A (in-repo checkout)
@@ -161,14 +163,14 @@ from jsdom or a Node test. The meaningful checks are:
 ## Execution State
 
 **Build Status**: IDLE
-**Current Phase**: REFLECT → ARCHIVE
-**Current Step**: Step 4 - Git Commit - COMPLETE
-**Phase Being Built**: N/A — build and reflection both complete
+**Current Phase**: COMPLETE
+**Current Step**: Archived — PR open to `main`
+**Phase Being Built**: N/A — build, reflection, and archive all complete
 **Phase Number**: 1 of 1
 **Is Multi-Phase**: NO
-**Last Completed**: Reflection (`memory-bank/reflection/console-dev-ports-reflection.md`) on `task/console-dev-ports`
+**Last Completed**: Task archive (`memory-bank/archive/console-dev-ports-archive.md`) + learning consolidation into `agent-rules/_learned/config-management.md`
 **Can Resume**: NO
-**Resume From**: N/A — next is `/bmb:archive console-dev-ports`
+**Resume From**: N/A — task COMPLETE; awaiting PR review/merge
 
 ### Active Sub-Agents
 (none)
