@@ -2,15 +2,16 @@
 slug: client-styling
 legacy_id:
 feature: client-styling
-status: IN_PROGRESS
+status: REFLECTION_COMPLETE
 ---
 
 # client-styling: Client Styling
 
 **Complexity**: Level 2
-**Status**: BUILD_COMPLETE — **all ACs verified.** AC-VISUAL-1 was confirmed by the product
+**Status**: REFLECTION_COMPLETE — **all ACs verified.** AC-VISUAL-1 was confirmed by the product
 owner's direct observation on 2026-08-24 (see § AC-VISUAL-1 and Execution State; no screenshot
 was captured — the evidence is the attestation, not a stored artifact)
+**Reflection**: memory-bank/reflection/client-styling-reflection.md
 **Roadmap**: client-styling
 **Branch**: feature/client-styling
 **Worktree**: N/A (in-repo checkout)
@@ -137,15 +138,15 @@ AC-PANEL-2 keeps the alert outside the collapsed region. Precedent that this wor
 ## Implementation Roadmap
 
 ### New Source Files
-- [ ] `console/src/styles.css` — tokens, reset, app shell, transcript, composer, panels
+- [x] `console/src/styles.css` — tokens, reset, app shell, transcript, composer, panels
 
 ### Extended Source Files
-- [ ] `console/src/main.tsx` — `import "./styles.css"`
-- [ ] `console/src/components/DraftPreview.tsx` — `panel draft-preview` + element classes
-- [ ] `console/src/components/SignoffPanel.tsx` — `panel signoff-panel` + element classes
-- [ ] `console/src/components/DiagnosticsPanel.tsx` — classes; `<details>` around the detail
+- [x] `console/src/main.tsx` — `import "./styles.css"`
+- [x] `console/src/components/DraftPreview.tsx` — `panel draft-preview` + element classes
+- [x] `console/src/components/SignoffPanel.tsx` — `panel signoff-panel` + element classes
+- [x] `console/src/components/DiagnosticsPanel.tsx` — classes; `<details>` around the detail
       breakdown, alert left outside
-- [ ] `memory-bank/techContext.md` — record the styling approach and token convention
+- [x] `memory-bank/techContext.md` — record the styling approach and token convention
 
 ### Unchanged, deliberately
 - `console/src/pages/SeasonChat.tsx` — all 7 class names already exist
@@ -154,9 +155,17 @@ AC-PANEL-2 keeps the alert outside the collapsed region. Precedent that this wor
 - every `*.test.tsx` — see AC-REGRESSION-1
 
 ### Phases
-- [ ] Phase 1: Stylesheet + shell + panel classes (single phase — one cohesive visual change;
+- [x] Phase 1: Stylesheet + shell + panel classes (single phase — one cohesive visual change;
       splitting tokens from layout would leave an intermediate state that is neither
       verifiable nor useful)
+
+> **Checkbox correction (2026-08-24)**: every box above was left unticked by the Phase 1 build
+> even though the work shipped and merged in PR #6 (`a75c393`, merged as `d92bfa0`). They were
+> ticked during `/bmb:reflect` only after verifying each item against the merged tree —
+> `styles.css` present (15,625 b), `main.tsx:5` imports it, the three panel components carry
+> `className` (8/3/5 occurrences), `DiagnosticsPanel.tsx:161-180` holds the `<details>`
+> disclosure with the alert outside it, and `techContext.md:195` carries § Styling Conventions.
+> Suite re-run at correction time: 107/107. The boxes were stale bookkeeping, not open work.
 
 ## Creative Phases
 - [x] None required — design decisions settled with the user before planning (Level 2)
@@ -164,15 +173,20 @@ AC-PANEL-2 keeps the alert outside the collapsed region. Precedent that this wor
 ## Execution State
 
 **Build Status**: IDLE
-**Current Phase**: BUILD COMPLETE → REFLECT/ARCHIVE
-**Current Step**: Phase 1 implemented and verified; **AC-VISUAL-1 CONFIRMED 2026-08-24** — all
-ACs now closed
+**Current Phase**: REFLECT → ARCHIVE
+**Current Step**: Step 4 - Git Commit - COMPLETE
 **Phase Being Built**: N/A — single phase complete
 **Phase Number**: 1 of 1 (complete)
 **Is Multi-Phase**: NO
-**Last Completed**: AC-VISUAL-1 confirmation by the product owner (2026-08-24)
+**Last Completed**: Reflection (`memory-bank/reflection/client-styling-reflection.md`), 2026-08-24
 **Can Resume**: NO — no implementation work remains and no open ACs.
-**Resume From**: N/A — next is `/bmb:reflect client-styling` then `/bmb:archive client-styling`
+**Resume From**: N/A — next is `/bmb:archive client-styling`
+
+### Completed Steps (reflect)
+- Roadmap checkbox correction — all 6 file items + Phase 1 verified against the merged tree and
+  ticked (see the correction note in § Implementation Roadmap)
+- Regression tripwire re-run at reflection time: 107/107 passing, 15 files
+- Reflection Agent: COMPLETE (2026-08-24) — Output: `memory-bank/reflection/client-styling-reflection.md`
 
 ### AC-VISUAL-1 Confirmation (2026-08-24)
 
