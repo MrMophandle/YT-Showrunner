@@ -7,7 +7,7 @@ This file is created and maintained by `/bmb:uat-init`. It carries project-speci
 ---
 
 **Status**: Configured
-**Last Updated**: 2026-08-18
+**Last Updated**: 2026-08-25
 
 ## Environments
 
@@ -26,13 +26,40 @@ backend binds `127.0.0.1` only and has no external network exposure
 **Both processes must be running before a UAT walk:**
 
 ```
-YTS_CANON_ROOT=console/.uat-canon npm run dev:server --prefix console
+YTS_CANON_ROOT=.uat-canon npm run dev:server --prefix console
 npm run dev:client --prefix console
 ```
+
+> **Why `.uat-canon` and not `console/.uat-canon`:** npm runs a script with the working
+> directory set to the package root, so `--prefix console` means the server's `cwd` is
+> already `console/` (verified: `PWD=<repo>/console`). `YTS_CANON_ROOT` is resolved by Node
+> against that `cwd`, so the previously-documented `console/.uat-canon` form pointed at
+> `console/console/.uat-canon` — a directory that does not exist.
+>
+> Measured A/B against `GET /api/seasons/season-1/draft` on 2026-08-25:
+>
+> | `YTS_CANON_ROOT` | Response |
+> |---|---|
+> | `console/.uat-canon` (old) | **204 No Content**, empty body |
+> | `.uat-canon` (correct) | **200**, 2 episodes (`Carrier`, `Manifest`) |
+>
+> Note the failure is **silent**: a 204 renders as an empty Draft Preview, which reads as
+> "no draft yet" rather than "your canon root is wrong." Nothing logs an error. That is why
+> this survived undetected in this file from 2026-08-18 until 2026-08-25.
+>
+> `.uat-canon` is correct whether you use `--prefix console` or `cd console` first; an
+> absolute path also works.
 
 Entry route: `/seasons/<seasonId>/chat` — e.g. `http://localhost:6173/seasons/season-1/chat`.
 Any other path redirects to `season-1` (`console/src/App.tsx:10`); there is no season
 list or picker yet.
+
+**Kill stale watchers by PID before a walk.** `dev:server` runs under `tsx watch`, so a
+server left over from a previous session will silently restart when you edit anything under
+`console/server/` — taking its in-memory SSE replay buffer with it. If a walk depends on
+events already in that buffer, capture them to disk first (see
+`agent-rules/_learned/process-hygiene.md`). Find them with
+`lsof -nP -iTCP -sTCP:LISTEN | grep -E "6187|6173"`.
 
 ## Auth
 
