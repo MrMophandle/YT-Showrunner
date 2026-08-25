@@ -14,6 +14,8 @@ re-observed in the DOM (see § Phase 1 for why — an honest gap, not a pass). A
 `push-and-pr` merges nothing, so the open AC is carried as a DO-NOT-MERGE callout on the PR.
 **Archived**: `memory-bank/archive/transcript-turn-grouping-archive.md`
 **Completed**: 2026-08-24
+**PR**: https://github.com/MrMophandle/YT-Showrunner/pull/9 → `main` (open; **do not merge
+until AC-VISUAL-1 closes**)
 **Reflection**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
 **Roadmap**: transcript-turn-grouping
 **Branch**: feature/transcript-turn-grouping (rebased onto `origin/main` 2026-08-24; the
