@@ -132,17 +132,22 @@ in particular is a shape a hand-written fixture would not have thought to includ
 ## Implementation Roadmap
 
 ### Extended Source Files
-- [ ] `console/server/stream-parser.ts` — merge consecutive assistant events in
+- [x] `console/server/stream-parser.ts` — merge consecutive assistant events in
       `groupIntoTurns`; field semantics per AC-MERGE-1/2/4
-- [ ] `console/server/stream-parser.test.ts` — AC-MERGE-1/2/3/4
-- [ ] `console/src/components/TranscriptTurn.tsx` — return `null` for a contentless turn
-- [ ] `console/src/components/TranscriptTurn.test.tsx` — AC-EMPTY-1
-- [ ] `console/src/components/DiagnosticsPanel.test.tsx` — unmoved-total cross-check
-- [ ] `console/src/styles.css` — role label no longer repeats per row; adjust if needed
-- [ ] `memory-bank/techContext.md` — record the turn-grouping contract
+- [x] `console/server/stream-parser.test.ts` — AC-MERGE-1/2/3/4
+- [x] `console/src/components/TranscriptTurn.tsx` — return `null` for a contentless turn
+- [x] `console/src/components/TranscriptTurn.test.tsx` — AC-EMPTY-1
+- [x] `console/src/components/DiagnosticsPanel.test.tsx` — unmoved-total cross-check
+- [x] `console/src/styles.css` — **no change needed**. This item was conditional ("adjust if
+      needed"); once contentless turns stopped rendering, the existing
+      `.transcript-turn--assistant + .transcript-turn--assistant` label rule worked as
+      written, because real sibling adjacency now matches what the reader sees. This is
+      precisely the case the rejected CSS-only alternative could not reach (`display: none`
+      leaves the hidden element in the sibling chain; returning `null` removes it).
+- [x] `memory-bank/techContext.md` — record the turn-grouping contract
 
 ### Phases
-- [ ] Phase 1: Merge logic + empty-turn render guard (single phase — the parser change and the
+- [x] Phase 1: Merge logic + empty-turn render guard (single phase — the parser change and the
       render guard are two halves of one observable outcome; shipping either alone leaves the
       transcript still wrong)
 
@@ -151,9 +156,12 @@ in particular is a shape a hand-written fixture would not have thought to includ
 
 ## Execution State
 
-**Build Status**: IDLE
-**Current Phase**: BUILD COMPLETE → (browser confirmation) → REFLECT/ARCHIVE
-**Current Step**: Phase 1 implemented; 113/113 green; AC-VISUAL-1 open
+**Build Status**: RUNNING
+**Current Phase**: REFLECT
+**Current Step**: Step 3 - Spawn Reflection Agent - COMPLETE
+**Reflection Document**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
+**Step Started**: 2026-08-24
+**Can Resume**: YES
 **Phase Being Built**: N/A — single phase complete
 **Phase Number**: 1 of 1 (complete)
 **Is Multi-Phase**: NO
@@ -230,6 +238,28 @@ Diagnostics reading for that buffer was **56,478 / 200,000 (28%)** per the
 `headless-draft-writes` AC-VERIFY-1 evidence; whoever drives the next turn should confirm the
 reported total still tracks the most recent usage block and has not inflated (a sum would show
 roughly 4× that) — the sharpest single check that the merge is correct in the running app.
+
+### Rebase onto `origin/main` + re-verification (2026-08-24, at `/bmb:reflect`)
+
+The branch was cut off `feature/client-styling` while that work was still open. Both it and
+`task/console-dev-ports` have since merged (PRs #8 and #7), leaving this branch 12 commits
+behind `origin/main`. Sync-Before-Resume rebased it; `git merge-tree` predicted a clean merge
+first, and the rebase was clean in fact — the stacking dependency dissolved on its own, since
+the parent's commits were already in `main`.
+
+Re-verified **after** the rebase, because it pulled in `console-dev-ports`' changes to
+`console/` (`ports.ts`, `vite.config.ts`, `vitest.config.ts`, `server/index.ts`):
+
+- **115/115 tests green across 15 files** — 113 from this branch's own verification plus the
+  2 `ports.test.ts` tests that arrived with the rebase. No pre-existing test modified.
+- `typecheck` clean, `build:client` clean (37 modules, 8.56 kB CSS, 173.86 kB JS).
+
+The merge logic is therefore proven green against current `main`, not only against the
+now-historical `client-styling` tip it was written on.
+
+**Correction to the stale-process note below**: the ports moved to 61XX when
+`console-dev-ports` merged. Server is now 6187 and Vite 6173 — the 8787/5173/5174 figures
+below are pre-rebase and no longer apply.
 
 ### Resumption Notes
 **Notes**: No implementation work remains. One real turn through the UI closes AC-VISUAL-1 and
