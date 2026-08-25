@@ -136,8 +136,8 @@ the merge logic itself, is the most important thing this task produced.
   criteria in the task file could cite exact figures (46640 → 50277 → 50503 → 51344) instead of
   hand-waving "usage should still be correct." That precision is what let AC-MERGE-2 assert a
   specific expected value rather than a vaguer invariant, which is what made the RED failure
-  (`expected 46640, got 51344` — well, the reverse assertion direction, but the same idea)
-  diagnostically sharp instead of just red/green.
+  (`expected { input_tokens: 46640 } to deeply equal { input_tokens: 51344 }`) diagnostically
+  sharp instead of just red/green — it named the pre-fix semantics outright.
 - **The stacking decision (`feature/transcript-turn-grouping` cut off `feature/client-styling`
   instead of `origin/main`) was a real, considered trade** — the explicit rationale in the task
   file (line 25-27) was that the styled console had to be present to judge whether the merged

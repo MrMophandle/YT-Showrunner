@@ -8,11 +8,13 @@ status: IN_PROGRESS
 # transcript-turn-grouping: Transcript Turn Grouping
 
 **Complexity**: Level 2
-**Status**: BUILD_COMPLETE — all merge ACs proven by tests built from real captured CLI
+**Status**: REFLECTION_COMPLETE — all merge ACs proven by tests built from real captured CLI
 shapes; **AC-VISUAL-1 not re-observed in the DOM** (see § Phase 1 for why, and it is an
 honest gap, not a pass)
+**Reflection**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
 **Roadmap**: transcript-turn-grouping
-**Branch**: feature/transcript-turn-grouping (stacked on `feature/client-styling`)
+**Branch**: feature/transcript-turn-grouping (rebased onto `origin/main` 2026-08-24; the
+`feature/client-styling` parent it was stacked on has since merged)
 **Worktree**: N/A (in-repo checkout)
 
 ## Task Description
@@ -156,18 +158,15 @@ in particular is a shape a hand-written fixture would not have thought to includ
 
 ## Execution State
 
-**Build Status**: RUNNING
-**Current Phase**: REFLECT
-**Current Step**: Step 3 - Spawn Reflection Agent - COMPLETE
+**Build Status**: IDLE
+**Current Phase**: REFLECT → ARCHIVE
+**Current Step**: Step 4 - Git Commit - COMPLETE
 **Reflection Document**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
-**Step Started**: 2026-08-24
-**Can Resume**: YES
 **Phase Being Built**: N/A — single phase complete
 **Phase Number**: 1 of 1 (complete)
 **Is Multi-Phase**: NO
-**Last Completed**: Phase 1 — assistant-run merge in `groupIntoTurns` + contentless-turn
-render guard in `TranscriptTurn`
-**Can Resume**: NO — no implementation work remains
+**Last Completed**: REFLECT — reflection document written and committed (2026-08-24)
+**Can Resume**: NO — no implementation or reflection work remains
 **Resume From**: N/A
 
 ### Active Sub-Agents
