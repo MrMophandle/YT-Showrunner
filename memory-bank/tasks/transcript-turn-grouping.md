@@ -8,14 +8,12 @@ status: IN_PROGRESS
 # transcript-turn-grouping: Transcript Turn Grouping
 
 **Complexity**: Level 2
-**Status**: COMPLETE — archived 2026-08-24 with **AC-VISUAL-1 open**. Five of six MUST
-criteria are proven by tests built from real captured CLI shapes; AC-VISUAL-1 was never
-re-observed in the DOM (see § Phase 1 for why — an honest gap, not a pass). Archiving under
-`push-and-pr` merges nothing, so the open AC is carried as a DO-NOT-MERGE callout on the PR.
+**Status**: COMPLETE — archived 2026-08-24. **All six MUST criteria closed**, including
+AC-VISUAL-1, confirmed in a real browser against a real `claude -p` turn on 2026-08-24 (see
+§ AC-VISUAL-1 — CLOSED).
 **Archived**: `memory-bank/archive/transcript-turn-grouping-archive.md`
 **Completed**: 2026-08-24
-**PR**: https://github.com/MrMophandle/YT-Showrunner/pull/9 → `main` (open; **do not merge
-until AC-VISUAL-1 closes**)
+**PR**: https://github.com/MrMophandle/YT-Showrunner/pull/9 → `main` (open, ready to merge)
 **Reflection**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
 **Roadmap**: transcript-turn-grouping
 **Branch**: feature/transcript-turn-grouping (rebased onto `origin/main` 2026-08-24; the
@@ -165,7 +163,7 @@ in particular is a shape a hand-written fixture would not have thought to includ
 
 **Build Status**: IDLE
 **Current Phase**: COMPLETE
-**Current Step**: Archived 2026-08-24 — PR open, AC-VISUAL-1 outstanding
+**Current Step**: Archived 2026-08-24 — PR open, all ACs closed
 **Reflection Document**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
 **Archive Document**: `memory-bank/archive/transcript-turn-grouping-archive.md`
 **Phase Being Built**: N/A — single phase complete
@@ -174,8 +172,8 @@ in particular is a shape a hand-written fixture would not have thought to includ
 **Last Completed**: ARCHIVE — archive doc written, learnings consolidated, PR opened
 **Can Resume**: NO — no implementation, reflection, or archive work remains
 **Resume From**: N/A
-**Outstanding**: AC-VISUAL-1 (manual DOM confirmation). Close it before merging the PR —
-see the archive doc's § Open Verification for the two-step check.
+**Outstanding**: none — AC-VISUAL-1 closed 2026-08-24 in a real browser against a real
+`claude -p` turn. PR #9 is ready to merge.
 
 ### Active Sub-Agents
 (none)
@@ -245,6 +243,54 @@ Diagnostics reading for that buffer was **56,478 / 200,000 (28%)** per the
 `headless-draft-writes` AC-VERIFY-1 evidence; whoever drives the next turn should confirm the
 reported total still tracks the most recent usage block and has not inflated (a sum would show
 roughly 4× that) — the sharpest single check that the merge is correct in the running app.
+
+### AC-VISUAL-1 — CLOSED (2026-08-24, real browser + real `claude -p` turn)
+
+The user asked for the gap to be closed, so a real turn was driven through the UI. Both
+stale watchers were killed by PID and both servers restarted from known-good config
+(`YTS_CANON_ROOT` given as an **absolute** path rather than the relative form in
+`uat-config.md`, which would resolve wrongly under `npm --prefix console`). Baseline before
+the turn: transcript "No messages yet.", Diagnostics "No usage data yet."
+
+**Prompt** (chosen to force multiple tool calls — a one-event reply would prove nothing about
+merging): *"Read the continuity ledger and the series overview, then tell me which unresolved
+thread the two drafted episodes leave most exposed. Keep it to three sentences."*
+
+**The raw event stream, read back from the SSE replay buffer** — 4 assistant events across
+2 message ids, with 2 interleaved `tool_result` user events:
+
+| # | Event | id | blocks |
+|---|---|---|---|
+| 1 | user | — | the prompt |
+| 2 | assistant | `TrgmdWiC` | `thinking(0)` ← **empty-string thinking block, again** |
+| 3 | assistant | `TrgmdWiC` | `tool_use:Read` |
+| 4 | user | — | `tool_result` |
+| 5 | assistant | `TrgmdWiC` | `tool_use:Read` |
+| 6 | user | — | `tool_result` |
+| 7 | assistant | `Ft4BFzqj` | `text(750)` |
+
+Under the old per-event grouping this renders **5 rows** (1 user + 4 assistant), three of them
+textless and one a completely bare label. **Observed: 2 rows** — one `USER`, one `ASSISTANT`
+carrying both `Read` chips *and* the reply text. No bare labels, no empty rows. 0 console
+errors. Screenshot: `.claude-logs/ac-visual-1-pass-20260824.jpg`.
+
+**The token-math half, discriminated rather than eyeballed.** The four usage blocks totalled
+59646 / 59646 / 59646 / 60367. Each candidate semantics predicts a *distinct* number, so the
+observation identifies exactly one:
+
+| Semantics | Would display | Verdict |
+|---|---|---|
+| Sum | **239,305** | 120% of a 200k window — the false over-limit alarm the design predicted |
+| First-write-wins | **59,646** | stale |
+| **Last-write-wins** | **60,367** | ✅ **matches the screen exactly** |
+
+Diagnostics read **60,367 / 200,000 (30%)**. The archive's predicted "roughly 4×" for a sum
+was accurate: 239,305 / 60,367 ≈ 3.96×. This is a positive identification of last-write-wins
+in the running app, not merely a plausible-looking total.
+
+Note the `thinking(0)` block in event 2: the empty-string shape that motivated the whole fix
+appeared again in fresh live traffic, confirming it is routine CLI behavior rather than an
+artifact of the one captured log the fixtures were built from.
 
 ### Rebase onto `origin/main` + re-verification (2026-08-24, at `/bmb:reflect`)
 

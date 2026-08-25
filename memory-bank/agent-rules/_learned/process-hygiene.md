@@ -46,11 +46,25 @@ last_validated: 2026-08-24
        task file at IN_PROGRESS, the roadmap feature at in_progress, and no archive entry —
        and banyan records completion by the archive entry, not by the merge. -->
   <!-- evidence (2nd instance): transcript-turn-grouping archived on 2026-08-24 with
-       AC-VISUAL-1 still open. Handled the way this rule prescribes rather than the way
-       client-styling did: archiving under `push-and-pr` merges nothing, so the open MUST
-       was carried as a DO-NOT-MERGE callout on the archive doc and the PR body, leaving the
-       merge decision with a human who can see it. The distinction that makes this workable:
-       ARCHIVING with an open AC is recoverable, MERGING with one is not. -->
+       AC-VISUAL-1 still open, and this rule worked as intended. Archiving under
+       `push-and-pr` merges nothing, so the open MUST rode visibly on PR #9 as a
+       DO-NOT-MERGE callout instead of being silently passed — and it was closed the same
+       day by a real browser walk, before any merge. The distinction that makes this
+       workable: ARCHIVING with an open AC is recoverable, MERGING with one is not. Prefer
+       carrying an open MUST loudly on the PR over either faking the pass or blocking the
+       archive. -->
+
+- When an acceptance criterion can only be closed by observation, write down IN ADVANCE what
+  each candidate outcome would look like numerically. A check whose expected values are
+  precomputed becomes a lookup anyone can perform; one that is not becomes a judgment call
+  that tends to get skipped or fudged.
+  <!-- evidence: transcript-turn-grouping predicted that a usage-summing bug would show
+       "roughly 4x" the true context total. When AC-VISUAL-1 was finally driven in a real
+       browser, the three candidate semantics predicted 239,305 (sum) / 59,646 (first-wins) /
+       60,367 (last-wins) — all distinct, so the observed 60,367 positively IDENTIFIED
+       last-write-wins rather than merely looking plausible. The predicted ratio was accurate
+       to 3.96x. Precomputing the signature turned a subjective "does this number look right?"
+       into an unambiguous match. -->
 
 - Verification evidence that lives only in a running process's memory is not durable, and a
   file-watching dev server (`tsx watch`, `nodemon`, Vite HMR) will destroy it the moment you

@@ -8,12 +8,12 @@ created: 2026-08-23
 completed: 2026-08-24
 ---
 
-> **Completed 2026-08-24** with one MUST criterion open. The only linked task
-> (`transcript-turn-grouping`) is archived at
-> `memory-bank/archive/transcript-turn-grouping-archive.md`; five of six MUST acceptance
-> criteria are proven by test, and **AC-VISUAL-1 (manual DOM confirmation) is outstanding**.
-> The feature's PR must not merge until it closes — see the archive doc's § Open
-> Verification.
+> **Completed 2026-08-24.** The only linked task (`transcript-turn-grouping`) is archived at
+> `memory-bank/archive/transcript-turn-grouping-archive.md`. **All six MUST acceptance
+> criteria are closed** — five by tests built from real captured CLI shapes, and AC-VISUAL-1
+> by a real browser walk against a real `claude -p` turn on 2026-08-24 (9→2 row collapse
+> observed; Diagnostics positively identified last-write-wins at 60,367, where a summing bug
+> would have shown 239,305).
 
 # Transcript Turn Grouping
 

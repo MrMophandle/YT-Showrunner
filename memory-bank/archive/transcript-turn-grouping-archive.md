@@ -8,17 +8,17 @@
 - Branch: `feature/transcript-turn-grouping` (rebased onto `origin/main` 2026-08-24)
 - Reflection: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
 
-> ## ⚠️ Archived with one MUST acceptance criterion OPEN
+> ## ✅ All six MUST acceptance criteria closed
 >
-> **AC-VISUAL-1 was never verified in the DOM.** This archive records the task as complete
-> because its implementation and reflection are complete and the PR is open for review — it
-> does **not** assert that all six MUST criteria are closed. Five are. The sixth is open, by
-> deliberate record rather than by oversight.
+> This archive was originally written with **AC-VISUAL-1 open** — recorded honestly as an
+> unverified MUST rather than inferred from a green suite. It was **closed the same day**
+> (2026-08-24) by driving a real turn through the UI at the user's request. See
+> § AC-VISUAL-1 — Closed for the evidence.
 >
-> `_learned/process-hygiene.md` carries a rule (from `client-styling`) that says not to let
-> code merge while a MUST AC is open. That rule is respected here precisely because archiving
-> under `push-and-pr` **opens a PR and merges nothing** — the merge decision stays with a
-> human who can see this callout. Close AC-VISUAL-1 before merging. See § Open Verification.
+> The sequencing worked as `_learned/process-hygiene.md` prescribes: archiving under
+> `push-and-pr` merges nothing, so the open MUST rode visibly on PR #9 as a DO-NOT-MERGE
+> callout until it was actually closed — never a silent pass, and never a merge against an
+> open criterion.
 
 ## Summary
 
@@ -118,32 +118,47 @@ Re-run on 2026-08-24 **after** rebasing onto `origin/main`, because the rebase p
 | AC-MERGE-4 stable `messageId`/`timestamp` | ✅ | guard test, passed at RED by design |
 | AC-EMPTY-1 contentless turn renders nothing | ✅ | RED at a rendered bare role label |
 | AC-REGRESSION-1 no regression | ✅ | 115/115, typecheck + build clean |
-| **AC-VISUAL-1 the transcript actually reads correctly** | ❌ **OPEN** | see below |
+| **AC-VISUAL-1 the transcript actually reads correctly** | ✅ | real browser + real turn, below |
 
-## Open Verification — AC-VISUAL-1
+## AC-VISUAL-1 — Closed
 
-The `.uat-canon` SSE buffer holding the original 9-row exchange **was destroyed mid-build**.
-`stream-parser.ts` is server code, the dev server runs under `tsx watch`, and an in-memory
-buffer does not survive a process restart — so editing the fix restarted the process holding
-the only evidence available to verify it. The transcript now reads "No messages yet.": zero
-rows because there are zero events, **not** because merging worked.
+**Why it was open at first.** The `.uat-canon` SSE buffer holding the original 9-row exchange
+was destroyed mid-build: `stream-parser.ts` is server code, the dev server runs under
+`tsx watch`, and an in-memory buffer does not survive a restart — so editing the fix restarted
+the process holding the only evidence for it. Rather than infer a pass from a green suite, the
+build recorded it open.
 
-The 7→2 turn collapse is proven by `stream-parser.test.ts`'s fixture, built from the
-identical real captured event sequence. That is strong evidence of the grouping contract, and
-it is still not the same as having observed the DOM. Recorded as open rather than inferred.
+**How it was closed** (2026-08-24). Stale watchers killed by PID, both servers restarted from
+known-good config, and one real turn driven through the UI. Prompt chosen to force multiple
+tool calls, since a single-event reply would exercise no merging at all.
 
-**To close it** — drive one real Season Chat turn through the UI and check two things:
+The SSE replay buffer, read back raw, contained **4 assistant events across 2 message ids**
+with 2 interleaved `tool_result` user events — including a `thinking(0)` **empty-string
+block**, the exact shape that motivated the fix, appearing again in fresh live traffic. Under
+the old per-event grouping that renders **5 rows**, three textless and one a bare label.
 
-1. The exchange renders as **2 rows** (one user, one assistant carrying the tool chips and
-   the reply), with no row showing a bare label.
-2. **Diagnostics' reported context total tracks the most recent usage block and has not
-   inflated.** The pre-change reading for that buffer was **56,478 / 200,000 (28%)** per
-   `headless-draft-writes` AC-VERIFY-1. A summing bug would show roughly **4×** that — this
-   is the sharpest single check that the merge is correct in the running app.
+**Observed: 2 rows** — one `USER`, one `ASSISTANT` carrying both `Read` chips *and* the reply
+text. No bare labels, no empty rows, 0 console errors.
+Screenshot: `.claude-logs/ac-visual-1-pass-20260824.jpg`.
 
-Not done during the build because it spawns a real `claude -p` and spends tokens the user did
-not ask to spend. Note the ports moved to **6187** (server) and **6173** (Vite) when
-`console-dev-ports` merged; kill stale watchers by PID first.
+**The token math was discriminated, not eyeballed.** The four usage blocks totalled
+59646 / 59646 / 59646 / 60367 — and each candidate semantics predicts a *different* number,
+so the observation identifies exactly one:
+
+| Semantics | Would display | Verdict |
+|---|---|---|
+| Sum | **239,305** | 120% of a 200k window — the false over-limit alarm the design predicted |
+| First-write-wins | **59,646** | stale |
+| **Last-write-wins** | **60,367** | ✅ **matches the screen exactly** |
+
+Diagnostics read **60,367 / 200,000 (30%)**. The "roughly 4×" prediction for a summing bug
+was accurate (239,305 / 60,367 ≈ 3.96×). This is a positive identification of last-write-wins
+in the running app rather than a merely plausible total.
+
+One incidental finding: `uat-config.md` documents the server start as
+`YTS_CANON_ROOT=console/.uat-canon npm run dev:server --prefix console`, but that relative
+path resolves against the `--prefix` directory and would land at `console/console/.uat-canon`.
+An absolute path was used instead. Worth fixing in `uat-config.md`.
 
 ## Learning Consolidation
 
@@ -161,9 +176,15 @@ Purely additive — no rules merged, retired, expired, or pruned. Two topic file
 
 - **The most valuable output of this task is a judgment call, not a code change.** With
   115/115 green and a fixture built from real captured shapes, the temptation to call
-  AC-VISUAL-1 "verified in spirit" was real. The task file instead names what is proven, what
-  is not, exactly why, and hands the next verifier a specific cheap check. That artifact is
-  worth more than a false PASS.
+  AC-VISUAL-1 "verified in spirit" was real. The task file instead named what was proven, what
+  was not, exactly why, and handed the next verifier a specific cheap check — which is
+  precisely what made closing it later a ten-minute job with an unambiguous result. The
+  discipline paid off twice: once by not shipping a false PASS, and again by making the real
+  verification cheap and mechanical when it happened.
+- **The predicted failure signature was correct.** The design argued a summing bug would show
+  "roughly 4×" the true total. When measured, a sum would have shown 239,305 against an actual
+  60,367 — 3.96×. Writing down what a specific bug *would look like* turned the eventual check
+  from a judgment call into a lookup.
 - **The branch was stacked on `feature/client-styling` by explicit user choice**, so the
   merged transcript could be judged with styles present rather than only by row count. The
   known cost — a rebase once the parent merged — materialized exactly as predicted when both

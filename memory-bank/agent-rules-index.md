@@ -9,7 +9,7 @@ Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings
 - Total rules: 6
 - Human-authored rules: 0
 - Learned rules (auto-generated): 6
-- Estimated max context: ~298 lines (OK)
+- Estimated max context: ~312 lines (OK; always-on subset 134 — over budget, see Warning 3)
 - Conflicts detected: 0
 - Learned-rule file cap: 6 / 10 (OK)
 
@@ -26,15 +26,20 @@ Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings
    is scoped to `console/` test files, `process-hygiene` is always-on), so no tie-break is
    needed yet. If a third rule reaches `medium`, check for a genuine conflict rather than
    assuming the pattern scopes stay disjoint.
-3. **Always-on context grew again**: `process-hygiene.md` went 43 → 66 lines this cycle, so
-   the two universal-`**/*` rules now combine to **~120 lines** (was ~97, ~80 before that).
-   That is three consecutive cycles of growth in the always-on set. The previous index asked
-   the next consolidation to prefer amending bullets over appending them; this cycle did that
-   for two of the three learnings (both `client-styling` bullets received second-instance
-   evidence in place) but still added one new bullet, because durable-verification-fixtures
-   is a genuinely distinct concept from the four already there. **At the next consolidation,
-   treat ~120 always-on lines as the budget ceiling** — prefer merging two existing
-   `process-hygiene` bullets over any further append.
+3. **Always-on context grew again, and overshot its own ceiling mid-cycle.**
+   `process-hygiene.md` went 43 → 66 → **80** lines this cycle (the second jump came when
+   AC-VISUAL-1 was closed later the same day and contributed a fifth bullet). The two
+   universal-`**/*` rules now combine to **134 lines** — up from ~97, and ~80 the cycle
+   before. Note this warning itself set a ~120-line ceiling earlier in this cycle and the
+   cycle then exceeded it; recorded rather than silently revised, because a budget that moves
+   whenever it binds is not a budget.
+   **Directive for the next consolidation — firm, not advisory:** `process-hygiene.md` must
+   not grow again. It now carries five bullets spanning three genuinely different themes
+   (agent commit boundaries, workflow bookkeeping, verification evidence). **Split it**: move
+   the two verification bullets (durable fixtures under file-watchers; precompute expected
+   values for observational ACs) into `empirical-verification.md`, which is already the
+   evidence-quality rule and is the better home. That is a lateral move between two existing
+   always-on files, so it reduces `process-hygiene` without adding a third `**/*` rule.
 
 Two rules (`process-hygiene`, `empirical-verification`) carry the universal `**/*` glob. A
 third `**/*` rule should be resisted in favor of folding into one of these two. Rules added
@@ -49,7 +54,7 @@ None.
 
 | Pattern | Rule | Priority | Lines |
 |---------|------|----------|-------|
-| `**/*` | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | **medium** | 66 |
+| `**/*` | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | **medium** | 80 |
 | `**/*` | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | low | 54 |
 | `**/*.ts` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
 | `**/*.tsx` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
@@ -101,14 +106,19 @@ None.
 **Changes this cycle (`transcript-turn-grouping`):** purely additive — nothing merged,
 retired, expired, or pruned.
 - `process-hygiene.md` — **amended; crossed the promotion threshold** (evidence_count 2 → 3,
-  priority `low` → **`medium`**, 43 → 66 lines). One new bullet: verification evidence held
-  only in a running process's memory is not durable, and a file-watching dev server destroys
-  it the moment you edit the code under test — snapshot it to disk first. Additionally, both
+  priority `low` → **`medium`**, 43 → **80** lines). Two new bullets: (1) verification evidence
+  held only in a running process's memory is not durable, and a file-watching dev server
+  destroys it the moment you edit the code under test — snapshot it to disk first; (2) added
+  later the same day when AC-VISUAL-1 was closed — precompute what each candidate outcome of
+  an observational AC would look like numerically, so closing it is a lookup rather than a
+  judgment call (the three usage semantics predicted 239,305 / 59,646 / 60,367, all distinct,
+  so the observed value positively identified one). Additionally, both
   bullets `client-styling` contributed received **second-instance evidence in place** rather
   than new bullets: the unticked-roadmap-checkboxes slip repeated exactly (two consecutive
   tasks, so it is a systematic gap in `/bmb:build`, not operator oversight), and the
   open-MUST-AC-at-archive-time case recurred — handled this time by carrying a DO-NOT-MERGE
-  callout on the PR, since archiving under `push-and-pr` merges nothing. Topics extended with
+  callout on the PR, since archiving under `push-and-pr` merges nothing, and then **closing
+  the AC for real the same day** rather than letting it ride. Topics extended with
   `verification`.
 - `testing-patterns.md` — **amended** (evidence_count 3 → 4, 57 → 73 lines). One new bullet:
   build fixtures from real captured output of the tool under test, not hand-written data. A
