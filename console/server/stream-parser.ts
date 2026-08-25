@@ -141,6 +141,16 @@ function extractContentParts(content: unknown): {
   return { text, thinking, toolCalls };
 }
 
+/**
+ * Joins content parts, dropping empties. The CLI emits `thinking` blocks
+ * containing the empty string, and a naive join would leave stray blank lines
+ * (or a "non-empty" string made only of separators) that then render as a
+ * contentless row.
+ */
+function joinNonEmpty(parts: string[]): string {
+  return parts.filter((part) => part.length > 0).join("\n\n");
+}
+
 function hasToolResult(content: unknown): boolean {
   return (
     Array.isArray(content) &&
@@ -152,11 +162,22 @@ function hasToolResult(content: unknown): boolean {
 }
 
 /**
- * Groups already-parsed stream-json event objects into NormalizedTurns.
- * Mirrors `group_into_turns()`: a user/assistant message event starts a new
- * turn; a user message whose content is entirely tool_result blocks is
- * appended to the CURRENT turn instead of starting a new one; `result`,
- * `system`, and unrecognized event types are handled separately (see caller).
+ * Groups already-parsed stream-json event objects into NormalizedTurns —
+ * ONE TURN PER LOGICAL EXCHANGE, not one per event.
+ *
+ * - A **user** message event always starts a new turn (never merged).
+ * - A run of consecutive **assistant** events merges into a single turn,
+ *   accumulating tool calls and taking the last `usage` block.
+ * - A user message whose content is entirely `tool_result` blocks is appended
+ *   to the current turn's `toolResults` rather than starting a new one, so
+ *   tool round-trips do not break an assistant run.
+ * - `result`, `system`, and unrecognized event types are handled separately
+ *   (see caller).
+ *
+ * A contentless turn (no text, thinking, or tool calls) is still returned
+ * rather than dropped: such an event can carry the only `usage` block in a
+ * stream, and discarding it here would destroy the context-usage reading.
+ * Suppressing its display is `TranscriptTurn`'s job.
  */
 export function groupIntoTurns(events: Array<Record<string, unknown>>): {
   turns: NormalizedTurn[];
@@ -191,6 +212,42 @@ export function groupIntoTurns(events: Array<Record<string, unknown>>): {
       }
 
       const { text, thinking, toolCalls } = extractContentParts(content);
+      const usage = (message.usage as UsageBlock | undefined) ?? undefined;
+
+      // The CLI emits one event PER CONTENT BLOCK, so a single assistant
+      // message spans several events (sharing one message.id), and one logical
+      // exchange spans several messages across tool round-trips. Fold a run of
+      // assistant events into ONE turn, so the transcript shows one row per
+      // exchange rather than one row per content block. Before this, a single
+      // exchange that read canon three times and wrote the draft rendered as 7
+      // rows, 3 of them nothing but a role label.
+      //
+      // USER turns are never merged. SeasonChat pops one pending-message entry
+      // per newly observed user turn (AC-ASYNC-2 of
+      // season-chat-conversation-loop), so collapsing two consecutive user
+      // messages would desync that queue and strand a queued message in the
+      // composer forever.
+      if (current && current.role === "assistant" && role === "assistant") {
+        current.text = joinNonEmpty([current.text, ...text]);
+        current.thinking = joinNonEmpty([current.thinking, ...thinking]);
+        current.toolCalls.push(...toolCalls);
+
+        // Last-write-wins. Each usage block is the FULL context sent/received
+        // for its request, not an increment, so the most recent block is the
+        // only correct reading (see computeContextUsage). Summing them would
+        // report ~198k of a 200k window and fire a false near-limit warning;
+        // keeping the first would report a stale, too-low number. Only
+        // overwrite when this event actually carried a block.
+        if (usage) {
+          current.usage = usage;
+        }
+
+        // messageId and timestamp deliberately keep their FIRST values:
+        // SeasonChat keys transcript rows off messageId, so adopting each
+        // merged event's id would change the key and remount the row while it
+        // is still growing.
+        continue;
+      }
 
       if (current) {
         turns.push(current);
@@ -198,13 +255,13 @@ export function groupIntoTurns(events: Array<Record<string, unknown>>): {
 
       current = {
         role: role as "user" | "assistant",
-        text: text.join("\n\n"),
-        thinking: thinking.join("\n\n"),
+        text: joinNonEmpty(text),
+        thinking: joinNonEmpty(thinking),
         toolCalls,
         toolResults: [],
         timestamp: typeof event.timestamp === "string" ? event.timestamp : "",
         messageId: typeof message.id === "string" ? message.id : "",
-        usage: (message.usage as UsageBlock | undefined) ?? undefined,
+        usage,
       };
       continue;
     }

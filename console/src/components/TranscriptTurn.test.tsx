@@ -48,4 +48,48 @@ describe("TranscriptTurn", () => {
     expect(screen.getByText("Let's talk about season 2.")).toBeInTheDocument();
     expect(screen.queryByText("Thinking")).not.toBeInTheDocument();
   });
+
+  it("renders nothing at all for a turn with no text, no thinking, and no tool calls (AC-EMPTY-1)", () => {
+    // The CLI emits assistant events carrying an EMPTY-STRING thinking block.
+    // Grouping folds most of these into a sibling event's turn, but a run made
+    // up entirely of them still yields a contentless turn — which previously
+    // rendered as a bare "ASSISTANT" label above nothing.
+    const emptyTurn: NormalizedTurn = {
+      role: "assistant",
+      text: "",
+      thinking: "",
+      toolCalls: [],
+      toolResults: [],
+      timestamp: "2026-08-12T00:00:00.000Z",
+      messageId: "msg_empty",
+      // Usage is deliberately present: an otherwise-empty event can carry the
+      // only usage block in a stream, which is exactly why suppression belongs
+      // here at render time and NOT in groupIntoTurns. The turn object must
+      // survive for computeContextUsage; it just must not draw anything.
+      usage: { input_tokens: 46_640 },
+    };
+
+    const { container } = render(<TranscriptTurn turn={emptyTurn} />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByTestId("transcript-turn")).not.toBeInTheDocument();
+    expect(screen.queryByText("assistant")).not.toBeInTheDocument();
+  });
+
+  it("still renders a turn that has only tool calls, since the tool chips are real content", () => {
+    const toolOnlyTurn: NormalizedTurn = {
+      role: "assistant",
+      text: "",
+      thinking: "",
+      toolCalls: [{ type: "tool_use", id: "toolu_9", name: "Write", input: {} }],
+      toolResults: [],
+      timestamp: "2026-08-12T00:00:00.000Z",
+      messageId: "msg_tools",
+    };
+
+    render(<TranscriptTurn turn={toolOnlyTurn} />);
+
+    expect(screen.getByTestId("transcript-turn")).toBeInTheDocument();
+    expect(screen.getByText("Write")).toBeInTheDocument();
+  });
 });

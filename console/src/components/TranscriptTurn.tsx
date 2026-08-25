@@ -11,6 +11,19 @@ export interface TranscriptTurnProps {
 }
 
 export function TranscriptTurn({ turn }: TranscriptTurnProps) {
+  // A turn with nothing to show renders nothing — not a bare role label above
+  // empty space. The CLI emits assistant events carrying an empty-string
+  // `thinking` block; grouping folds most of them into a sibling event's turn,
+  // but a run made up entirely of them still produces a contentless turn.
+  //
+  // Note this guard lives here and NOT in groupIntoTurns: such a turn can
+  // carry the only `usage` block in a stream, so the turn object must survive
+  // for computeContextUsage. It just must not draw anything.
+  const hasContent = turn.text.length > 0 || turn.thinking.length > 0 || turn.toolCalls.length > 0;
+  if (!hasContent) {
+    return null;
+  }
+
   return (
     <article
       className={`transcript-turn transcript-turn--${turn.role}`}
