@@ -8,9 +8,12 @@ status: IN_PROGRESS
 # transcript-turn-grouping: Transcript Turn Grouping
 
 **Complexity**: Level 2
-**Status**: REFLECTION_COMPLETE — all merge ACs proven by tests built from real captured CLI
-shapes; **AC-VISUAL-1 not re-observed in the DOM** (see § Phase 1 for why, and it is an
-honest gap, not a pass)
+**Status**: COMPLETE — archived 2026-08-24 with **AC-VISUAL-1 open**. Five of six MUST
+criteria are proven by tests built from real captured CLI shapes; AC-VISUAL-1 was never
+re-observed in the DOM (see § Phase 1 for why — an honest gap, not a pass). Archiving under
+`push-and-pr` merges nothing, so the open AC is carried as a DO-NOT-MERGE callout on the PR.
+**Archived**: `memory-bank/archive/transcript-turn-grouping-archive.md`
+**Completed**: 2026-08-24
 **Reflection**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
 **Roadmap**: transcript-turn-grouping
 **Branch**: feature/transcript-turn-grouping (rebased onto `origin/main` 2026-08-24; the
@@ -159,15 +162,18 @@ in particular is a shape a hand-written fixture would not have thought to includ
 ## Execution State
 
 **Build Status**: IDLE
-**Current Phase**: REFLECT → ARCHIVE
-**Current Step**: Step 4 - Git Commit - COMPLETE
+**Current Phase**: COMPLETE
+**Current Step**: Archived 2026-08-24 — PR open, AC-VISUAL-1 outstanding
 **Reflection Document**: `memory-bank/reflection/transcript-turn-grouping-reflection.md`
+**Archive Document**: `memory-bank/archive/transcript-turn-grouping-archive.md`
 **Phase Being Built**: N/A — single phase complete
 **Phase Number**: 1 of 1 (complete)
 **Is Multi-Phase**: NO
-**Last Completed**: REFLECT — reflection document written and committed (2026-08-24)
-**Can Resume**: NO — no implementation or reflection work remains
+**Last Completed**: ARCHIVE — archive doc written, learnings consolidated, PR opened
+**Can Resume**: NO — no implementation, reflection, or archive work remains
 **Resume From**: N/A
+**Outstanding**: AC-VISUAL-1 (manual DOM confirmation). Close it before merging the PR —
+see the archive doc's § Open Verification for the two-step check.
 
 ### Active Sub-Agents
 (none)

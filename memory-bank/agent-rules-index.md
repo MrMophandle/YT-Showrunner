@@ -1,7 +1,7 @@
 # Agent Rules Index
 
 Generated: 2026-08-24
-Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings: 2
+Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings: 3
 
 ## Validation Summary
 
@@ -9,22 +9,32 @@ Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings
 - Total rules: 6
 - Human-authored rules: 0
 - Learned rules (auto-generated): 6
-- Estimated max context: ~258 lines (OK)
+- Estimated max context: ~298 lines (OK)
 - Conflicts detected: 0
 - Learned-rule file cap: 6 / 10 (OK)
 
 ### ⚠️ Warnings
 
-1. **`testing-patterns.md` promoted to `medium`** (`evidence_count` 2 → 3, the promotion
-   threshold, during the `headless-draft-writes` cycle). It is the first rule on this project
-   to leave `low`, so it outranks the five remaining `low` learned rules on conflict. No
-   conflict currently exists — flagged because the precedence change is silent otherwise.
-2. **Always-on context grew this cycle**: `process-hygiene.md` went 26 → 43 lines absorbing
-   `client-styling`'s two process learnings, so the two universal-`**/*` rules now combine to
-   **~97 lines** (was ~80). This was the right call over a seventh file — the standing guidance
-   below says to fold rather than add a third `**/*` rule — but the fold is not free, and
-   `process-hygiene` is now the larger of the two always-on rules. At the next consolidation,
-   prefer amending existing bullets over appending new ones.
+1. **`process-hygiene.md` promoted to `medium`** (`evidence_count` 2 → 3 at the promotion
+   threshold, during the `transcript-turn-grouping` cycle). This is the more consequential of
+   the two promotions so far: `process-hygiene` carries the universal `**/*` glob, so it is
+   now a `medium`-priority rule that loads on **every** file and outranks the four remaining
+   `low` rules everywhere, not just within a topic. No conflict currently exists — flagged
+   because a precedence change with project-wide reach is silent otherwise.
+2. **`testing-patterns.md` is also `medium`** (promoted during `headless-draft-writes`,
+   `evidence_count` now 4). Two `medium` rules now exist; they do not overlap (`testing-patterns`
+   is scoped to `console/` test files, `process-hygiene` is always-on), so no tie-break is
+   needed yet. If a third rule reaches `medium`, check for a genuine conflict rather than
+   assuming the pattern scopes stay disjoint.
+3. **Always-on context grew again**: `process-hygiene.md` went 43 → 66 lines this cycle, so
+   the two universal-`**/*` rules now combine to **~120 lines** (was ~97, ~80 before that).
+   That is three consecutive cycles of growth in the always-on set. The previous index asked
+   the next consolidation to prefer amending bullets over appending them; this cycle did that
+   for two of the three learnings (both `client-styling` bullets received second-instance
+   evidence in place) but still added one new bullet, because durable-verification-fixtures
+   is a genuinely distinct concept from the four already there. **At the next consolidation,
+   treat ~120 always-on lines as the budget ceiling** — prefer merging two existing
+   `process-hygiene` bullets over any further append.
 
 Two rules (`process-hygiene`, `empirical-verification`) carry the universal `**/*` glob. A
 third `**/*` rule should be resisted in favor of folding into one of these two. Rules added
@@ -39,38 +49,38 @@ None.
 
 | Pattern | Rule | Priority | Lines |
 |---------|------|----------|-------|
-| `**/*` | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low | 43 |
+| `**/*` | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | **medium** | 66 |
 | `**/*` | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | low | 54 |
 | `**/*.ts` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
 | `**/*.tsx` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
 | `**/*route*` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
-| `**/*route*` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
+| `**/*route*` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 73 |
 | `**/*api*` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
 | `**/index.ts` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
-| `**/index.ts` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
+| `**/index.ts` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 73 |
 | `**/server/**` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
-| `**/*.test.ts` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
-| `**/*.test.tsx` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
-| `**/*.config.ts` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
-| `**/*.config.js` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
-| `**/server/**` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
+| `**/*.test.ts` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 73 |
+| `**/*.test.tsx` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 73 |
+| `**/*.config.ts` | [config-management.md](agent-rules/_learned/config-management.md) | low | 41 |
+| `**/*.config.js` | [config-management.md](agent-rules/_learned/config-management.md) | low | 41 |
+| `**/server/**` | [config-management.md](agent-rules/_learned/config-management.md) | low | 41 |
 
 ## Rules by Path
 
 | Path Contains | Rule | Priority | Lines |
 |---------------|------|----------|-------|
 | `console/server/` | [security-review.md](agent-rules/_learned/security-review.md) | low | 26 |
-| `console/` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 57 |
+| `console/` | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** | 73 |
 | `console/` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
-| `console/` | [config-management.md](agent-rules/_learned/config-management.md) | low | 40 |
+| `console/` | [config-management.md](agent-rules/_learned/config-management.md) | low | 41 |
 
 ## Rules by Topic
 
 | Keywords | Rule | Priority |
 |----------|------|----------|
 | security, input-validation, untrusted-input | [security-review.md](agent-rules/_learned/security-review.md) | low |
-| testing, tdd, error-handling | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** |
-| process, sub-agents, git, workflow, bookkeeping | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low |
+| testing, tdd, error-handling, fixtures | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** |
+| process, sub-agents, git, workflow, bookkeeping, verification | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | **medium** |
 | integration, wiring, dead-code, completion-criteria | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low |
 | research, external-apis, external-tools, design, assumptions, debugging, attribution | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | low |
 | config, defaults, 12-factor, dev-server | [config-management.md](agent-rules/_learned/config-management.md) | low |
@@ -81,14 +91,37 @@ None.
 
 | Rule | derived_from | evidence_count | last_validated |
 |---|---|---|---|
-| [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | conversational-season-drafting, season-chat-conversation-loop, headless-draft-writes | 3 | 2026-08-22 |
+| [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | conversational-season-drafting, season-chat-conversation-loop, headless-draft-writes, transcript-turn-grouping | 4 | 2026-08-24 |
+| [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | conversational-season-drafting, client-styling, transcript-turn-grouping | 3 | 2026-08-24 |
 | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | season-chat-conversation-loop, headless-draft-writes | 2 | 2026-08-22 |
 | [security-review.md](agent-rules/_learned/security-review.md) | conversational-season-drafting | 1 | 2026-08-13 |
-| [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | conversational-season-drafting, client-styling | 2 | 2026-08-24 |
 | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | season-chat-conversation-loop | 1 | 2026-08-18 |
 | [config-management.md](agent-rules/_learned/config-management.md) | console-dev-ports | 1 | 2026-08-24 |
 
-**Changes this cycle (`client-styling`):**
+**Changes this cycle (`transcript-turn-grouping`):** purely additive — nothing merged,
+retired, expired, or pruned.
+- `process-hygiene.md` — **amended; crossed the promotion threshold** (evidence_count 2 → 3,
+  priority `low` → **`medium`**, 43 → 66 lines). One new bullet: verification evidence held
+  only in a running process's memory is not durable, and a file-watching dev server destroys
+  it the moment you edit the code under test — snapshot it to disk first. Additionally, both
+  bullets `client-styling` contributed received **second-instance evidence in place** rather
+  than new bullets: the unticked-roadmap-checkboxes slip repeated exactly (two consecutive
+  tasks, so it is a systematic gap in `/bmb:build`, not operator oversight), and the
+  open-MUST-AC-at-archive-time case recurred — handled this time by carrying a DO-NOT-MERGE
+  callout on the PR, since archiving under `push-and-pr` merges nothing. Topics extended with
+  `verification`.
+- `testing-patterns.md` — **amended** (evidence_count 3 → 4, 57 → 73 lines). One new bullet:
+  build fixtures from real captured output of the tool under test, not hand-written data. A
+  hand-invented fixture encodes what you already believe the data looks like, so it omits the
+  edge shape that *is* the bug. Evidence: the Claude CLI emits `thinking` blocks containing
+  the empty string — exactly why those rows rendered as bare labels, and exactly what no
+  hand-written fixture would have contained. Topics extended with `fixtures`.
+- Note on the previous index's guidance ("prefer amending existing bullets over appending
+  new ones"): followed for two of three learnings; the third was appended because
+  durable-verification-fixtures is genuinely distinct from the four bullets already present.
+  See Warning 3 for the resulting always-on budget ceiling.
+
+**Changes in the `client-styling` cycle:**
 - `process-hygiene.md` — **amended, not a new file** (evidence_count 1 → 2, 26 → 43 lines).
   Two bullets appended: (1) tick Implementation Roadmap checkboxes at phase-completion time,
   since downstream phase gates read the boxes and not the Execution State narrative; (2) do not

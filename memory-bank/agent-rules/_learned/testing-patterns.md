@@ -2,12 +2,12 @@
 name: Testing Patterns (learned)
 globs: ["**/*.test.ts", "**/*.test.tsx", "**/*route*", "**/index.ts"]
 paths: ["console/"]
-topics: ["testing", "tdd", "error-handling"]
+topics: ["testing", "tdd", "error-handling", "fixtures"]
 priority: medium
 auto_generated: true
-derived_from: [conversational-season-drafting, season-chat-conversation-loop, headless-draft-writes]
-evidence_count: 3
-last_validated: 2026-08-22
+derived_from: [conversational-season-drafting, season-chat-conversation-loop, headless-draft-writes, transcript-turn-grouping]
+evidence_count: 4
+last_validated: 2026-08-24
 ---
 
 # Testing Patterns (learned)
@@ -54,4 +54,20 @@ last_validated: 2026-08-22
        silently re-break. This is the confirming third instance of this rule's
        mock-boundary theme, not a hypothetical. -->
 
-See also: [[security-review]], [[integration-wiring]], [[empirical-verification]]
+- Build fixtures from REAL captured output of the tool or service under test, not from
+  hand-written data. Capture a real run to a log, then transcribe its actual shapes. A
+  hand-invented fixture encodes what you already believe the data looks like, so it
+  reliably omits the edge shape that IS the bug — and the resulting test passes against a
+  fixture that cannot reproduce the failure it exists to catch.
+  <!-- evidence: transcript-turn-grouping — the Claude CLI emits `thinking` blocks
+       containing the EMPTY STRING, which is precisely why those rows rendered as a bare
+       role label with no content. No hand-written fixture would have used empty thinking
+       text; it would have used a plausible placeholder sentence and passed. Fixtures were
+       instead transcribed from real captured stdout
+       (`.claude-logs/skill-probe-b2-implicit.log`, claude 2.1.229), which also revealed
+       one message.id spanning several events and usage growing across ids
+       (46640 → 50277 → 50503 → 51344) — the three facts the whole design turned on, two
+       of which contradicted the initial assumption. -->
+
+See also: [[security-review]], [[integration-wiring]], [[empirical-verification]],
+[[process-hygiene]]

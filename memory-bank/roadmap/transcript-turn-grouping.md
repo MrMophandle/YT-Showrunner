@@ -1,11 +1,19 @@
 ---
 version: next
-status: in_progress
+status: completed
 priority: medium
 complexity: 2
 linked_tasks: [transcript-turn-grouping]
 created: 2026-08-23
+completed: 2026-08-24
 ---
+
+> **Completed 2026-08-24** with one MUST criterion open. The only linked task
+> (`transcript-turn-grouping`) is archived at
+> `memory-bank/archive/transcript-turn-grouping-archive.md`; five of six MUST acceptance
+> criteria are proven by test, and **AC-VISUAL-1 (manual DOM confirmation) is outstanding**.
+> The feature's PR must not merge until it closes — see the archive doc's § Open
+> Verification.
 
 # Transcript Turn Grouping
 
