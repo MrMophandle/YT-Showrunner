@@ -1,10 +1,11 @@
 ---
 version: next
-status: in_progress
+status: completed
 priority: medium
 complexity: 2
 linked_tasks: [client-styling]
 created: 2026-08-23
+completed: 2026-08-24
 ---
 
 # Client Styling

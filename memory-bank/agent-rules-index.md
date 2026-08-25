@@ -1,7 +1,7 @@
 # Agent Rules Index
 
 Generated: 2026-08-24
-Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings: 1
+Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings: 2
 
 ## Validation Summary
 
@@ -9,7 +9,7 @@ Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings
 - Total rules: 6
 - Human-authored rules: 0
 - Learned rules (auto-generated): 6
-- Estimated max context: ~241 lines (OK)
+- Estimated max context: ~258 lines (OK)
 - Conflicts detected: 0
 - Learned-rule file cap: 6 / 10 (OK)
 
@@ -19,12 +19,16 @@ Indexed: 6 rules (0 human-authored, 6 learned) | Rejected: 0 (unsafe) | Warnings
    threshold, during the `headless-draft-writes` cycle). It is the first rule on this project
    to leave `low`, so it outranks the five remaining `low` learned rules on conflict. No
    conflict currently exists — flagged because the precedence change is silent otherwise.
+2. **Always-on context grew this cycle**: `process-hygiene.md` went 26 → 43 lines absorbing
+   `client-styling`'s two process learnings, so the two universal-`**/*` rules now combine to
+   **~97 lines** (was ~80). This was the right call over a seventh file — the standing guidance
+   below says to fold rather than add a third `**/*` rule — but the fold is not free, and
+   `process-hygiene` is now the larger of the two always-on rules. At the next consolidation,
+   prefer amending existing bullets over appending new ones.
 
-Two rules (`process-hygiene`, `empirical-verification`) carry the universal `**/*` glob,
-combining to ~80 lines of always-on context — still modest, but this is what to watch. A
-third `**/*` rule should be resisted in favor of folding into one of these two. This cycle's
-new rule (`config-management`) deliberately took narrow globs rather than `**/*`, so the
-always-on total is unchanged.
+Two rules (`process-hygiene`, `empirical-verification`) carry the universal `**/*` glob. A
+third `**/*` rule should be resisted in favor of folding into one of these two. Rules added
+since (`config-management`) deliberately took narrow globs, so they add nothing always-on.
 
 ### 🚫 Rejected Rules (Unsafe)
 None.
@@ -35,7 +39,7 @@ None.
 
 | Pattern | Rule | Priority | Lines |
 |---------|------|----------|-------|
-| `**/*` | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low | 26 |
+| `**/*` | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low | 43 |
 | `**/*` | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | low | 54 |
 | `**/*.ts` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
 | `**/*.tsx` | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low | 38 |
@@ -66,7 +70,7 @@ None.
 |----------|------|----------|
 | security, input-validation, untrusted-input | [security-review.md](agent-rules/_learned/security-review.md) | low |
 | testing, tdd, error-handling | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | **medium** |
-| process, sub-agents, git | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low |
+| process, sub-agents, git, workflow, bookkeeping | [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | low |
 | integration, wiring, dead-code, completion-criteria | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | low |
 | research, external-apis, external-tools, design, assumptions, debugging, attribution | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | low |
 | config, defaults, 12-factor, dev-server | [config-management.md](agent-rules/_learned/config-management.md) | low |
@@ -80,11 +84,26 @@ None.
 | [testing-patterns.md](agent-rules/_learned/testing-patterns.md) | conversational-season-drafting, season-chat-conversation-loop, headless-draft-writes | 3 | 2026-08-22 |
 | [empirical-verification.md](agent-rules/_learned/empirical-verification.md) | season-chat-conversation-loop, headless-draft-writes | 2 | 2026-08-22 |
 | [security-review.md](agent-rules/_learned/security-review.md) | conversational-season-drafting | 1 | 2026-08-13 |
-| [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | conversational-season-drafting | 1 | 2026-08-13 |
+| [process-hygiene.md](agent-rules/_learned/process-hygiene.md) | conversational-season-drafting, client-styling | 2 | 2026-08-24 |
 | [integration-wiring.md](agent-rules/_learned/integration-wiring.md) | season-chat-conversation-loop | 1 | 2026-08-18 |
 | [config-management.md](agent-rules/_learned/config-management.md) | console-dev-ports | 1 | 2026-08-24 |
 
-**Changes this cycle (`console-dev-ports`):**
+**Changes this cycle (`client-styling`):**
+- `process-hygiene.md` — **amended, not a new file** (evidence_count 1 → 2, 26 → 43 lines).
+  Two bullets appended: (1) tick Implementation Roadmap checkboxes at phase-completion time,
+  since downstream phase gates read the boxes and not the Execution State narrative; (2) do not
+  let code merge while a MUST acceptance criterion is still open. Both came from real defects
+  this task exposed — six unticked checkboxes that nearly hard-blocked its own `/bmb:reflect`,
+  and a merge that landed a full day before AC-VISUAL-1 closed. Folded here rather than spawning
+  a seventh file, per the standing `**/*` guidance above. Topics extended with `workflow`,
+  `bookkeeping`. Nothing merged, retired, expired, or pruned; no rule crossed the promotion
+  threshold.
+- `testing-patterns.md` — **not modified**, but worth noting: `client-styling` reused its
+  manual-verification carve-out verbatim for AC-VISUAL-1. A reuse without a new bullet, so no
+  evidence increment was taken; flagged here so the next consolidation can judge whether the
+  pattern deserves one.
+
+**Changes in the `console-dev-ports` cycle:**
 - `config-management.md` — **new file, purely additive.** Two bullets: (1) duplicated
   env-configurable defaults across files must collapse to one shared constant, because a
   drifted duplicate fails silently rather than loudly; (2) dev servers that silently rebind on
